@@ -17,6 +17,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelopeHealthStatus'
+  /demo/runs:
+    post:
+      operationId: createDemoRun
+      summary: Create a deterministic demo run
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDemoRunRequest'
+      responses:
+        '200':
+          description: Demo run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeCreateDemoRunResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /demo/runs/{demoRunId}:
+    get:
+      operationId: getDemoRun
+      summary: Query demo run state
+      parameters:
+        - $ref: '#/components/parameters/DemoRunId'
+      responses:
+        '200':
+          description: Demo run state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeDemoRunResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+  /demo/runs/{demoRunId}/reset:
+    post:
+      operationId: resetDemoRun
+      summary: Reset a demo run
+      parameters:
+        - $ref: '#/components/parameters/DemoRunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: New active demo run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeResetDemoRunResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /analytics/demo-traces/{demoCaseId}:
+    get:
+      operationId: getDemoTrace
+      summary: Query demo run trace
+      parameters:
+        - name: demoCaseId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: demoRunId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Demo trace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeDemoRunTrace'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
 components:
   schemas:
     ApiEnvelope:
@@ -60,6 +140,117 @@ components:
         timestamp:
           type: string
           format: date-time
+    CreateDemoRunRequest:
+      type: object
+      required: [demoCaseId, baselineVersion]
+      properties:
+        demoCaseId:
+          type: string
+          example: DEMO-GRAPH-001
+        baselineVersion:
+          type: string
+          example: baseline-ds-v1
+    DemoRunCreateResponse:
+      type: object
+      required: [demoRunId, studentId, status]
+      properties:
+        demoRunId:
+          type: string
+        studentId:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE]
+    DemoRunResponse:
+      type: object
+      required: [demoRunId, demoCaseId, baselineVersion, status, stage, refs]
+      properties:
+        demoRunId:
+          type: string
+        demoCaseId:
+          type: string
+        baselineVersion:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, RESET]
+        stage:
+          type: string
+        refs:
+          type: object
+          additionalProperties:
+            type: string
+        correlationId:
+          type: string
+    ResetDemoRunResponse:
+      type: object
+      required: [newDemoRunId, baselineVersion]
+      properties:
+        newDemoRunId:
+          type: string
+        baselineVersion:
+          type: string
+    DemoTraceEvent:
+      type: object
+      required: [stage, ref, eventTime]
+      properties:
+        stage:
+          type: string
+        ref:
+          type: string
+        eventTime:
+          type: string
+          format: date-time
+    DemoRunTrace:
+      type: object
+      required: [demoRunId, demoCaseId, baselineVersion, correlationId, stage, refs, events]
+      properties:
+        demoRunId:
+          type: string
+        demoCaseId:
+          type: string
+        baselineVersion:
+          type: string
+        correlationId:
+          type: string
+        stage:
+          type: string
+        refs:
+          type: object
+          additionalProperties:
+            type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoTraceEvent'
+    ApiEnvelopeCreateDemoRunResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DemoRunCreateResponse'
+    ApiEnvelopeDemoRunResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DemoRunResponse'
+    ApiEnvelopeResetDemoRunResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ResetDemoRunResponse'
+    ApiEnvelopeDemoRunTrace:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DemoRunTrace'
     HealthStatus:
       type: object
       required: [status, service]
@@ -70,3 +261,36 @@ components:
         service:
           type: string
           example: foundation-api
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    DemoRunId:
+      name: demoRunId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    ResourceNotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    StateConflict:
+      description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'

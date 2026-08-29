@@ -22,6 +22,13 @@ class OpenApiContractTest {
             Map<String, Object> document = new Yaml().load(input);
             assertThat(document).containsEntry("openapi", "3.0.3");
             assertThat(document).containsKey("paths");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> paths = (Map<String, Object>) document.get("paths");
+            assertThat(paths).containsKeys(
+                    "/demo/runs",
+                    "/demo/runs/{demoRunId}",
+                    "/demo/runs/{demoRunId}/reset",
+                    "/analytics/demo-traces/{demoCaseId}");
         }
     }
 }

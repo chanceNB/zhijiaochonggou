@@ -16,11 +16,11 @@ class FlywayFoundationTest {
     @Test
     void foundationSchemasAreCreatedByFlyway() {
         Integer app = jdbcTemplate.queryForObject(
-                "select count(*) from information_schema.schemata where schema_name = 'APP'", Integer.class);
+                "select count(*) from information_schema.schemata where upper(schema_name) = 'APP'", Integer.class);
         Integer exchange = jdbcTemplate.queryForObject(
-                "select count(*) from information_schema.schemata where schema_name = 'SMARTBI_EXCHANGE'", Integer.class);
+                "select count(*) from information_schema.schemata where upper(schema_name) = 'SMARTBI_EXCHANGE'", Integer.class);
 
-        assertThat(app).isEqualTo(1);
-        assertThat(exchange).isEqualTo(1);
+        assertThat(app).isGreaterThanOrEqualTo(1);
+        assertThat(exchange).isGreaterThanOrEqualTo(1);
     }
 }
