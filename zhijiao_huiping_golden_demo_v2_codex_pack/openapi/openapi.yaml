@@ -1,0 +1,923 @@
+openapi: 3.0.3
+info:
+  title: 智教慧评 Golden Demo V2 API
+  version: 2.0.0
+  description: Codex-first contract; detailed field constraints are in 04_API_INTERFACE_SPEC.md/docx.
+servers:
+- url: http://localhost:8080
+  description: Local; all paths already include /api/v1
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+      - 认证
+      summary: 登录
+      description: 学生、教师、管理员登录并获取 JWT。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              username: xiaoming
+              password: '******'
+  /api/v1/auth/me:
+    get:
+      tags:
+      - 认证
+      summary: 当前用户
+      description: 获取当前登录用户、角色和权限。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/student/today:
+    get:
+      tags:
+      - 学生端
+      summary: 今日首页
+      description: 返回下一最佳学习行动、当前学习状态和教师 Assignment。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: courseId
+        in: query
+        required: false
+        schema:
+          type: string
+  /api/v1/student/learning-state:
+    get:
+      tags:
+      - 学生端
+      summary: 学习状态
+      description: 读取权威 StudentLearningSnapshot；前端不得自行计算 mastery。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: courseId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: knowledgePointId
+        in: query
+        required: false
+        schema:
+          type: string
+  /api/v1/student/coach/sessions:
+    post:
+      tags:
+      - 学生端
+      summary: 创建 AI Coach 会话
+      description: 创建真实 AI Coach 会话并绑定课程/当前知识点上下文。
+      operationId: AICoach
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              courseId: course-data-structures
+              knowledgePointId: kp-graph-bfs-dfs
+              mode: DIAGNOSTIC
+  /api/v1/student/coach/sessions/{sessionId}/messages:
+    post:
+      tags:
+      - 学生端
+      summary: AI Coach 对话
+      description: 发送消息。后端执行 Twin Context + RAG + Real LLM，引用必须来自真实检索结果。
+      operationId: AICoach
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              message: 为什么 BFS 要用队列？
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/coach/sessions/{sessionId}/diagnostic-sets:
+    post:
+      tags:
+      - 学生端
+      summary: 生成 2 道诊断题
+      description: 通过 ActiveDiagnosis + RAG + LLM 生成结构化诊断 PracticeSet，默认 2 题。
+      operationId: '2'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              knowledgePointId: kp-graph-bfs-dfs
+              questionCount: 2
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/coach/sessions/{sessionId}/similar-questions:
+    post:
+      tags:
+      - 学生端
+      summary: 生成相似题
+      description: 根据原题、知识点、误概念、难度和 RAG 生成新的结构化题目，不返回纯聊天文本题。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              sourceAttemptId: attempt-101
+              count: 1
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/practice-sets/{practiceSetId}:
+    get:
+      tags:
+      - 学生端
+      summary: 获取练习集
+      description: 获取题目、进度和来源上下文。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: practiceSetId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/practice-sets/{practiceSetId}/attempts:
+    post:
+      tags:
+      - 学生端
+      summary: 提交单题作答
+      description: 提交结构化作答并返回权威判定和解释。每道题产生唯一 attemptId。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              questionId: q-001
+              answer: 栈
+              durationSeconds: 36
+      parameters:
+      - name: practiceSetId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/practice-sets/{practiceSetId}/complete:
+    post:
+      tags:
+      - 学生端
+      summary: 完成练习集
+      description: 结束本次练习；生成 PracticeOutcome，并触发学习状态更新/Analytics Outbox。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example: {}
+      parameters:
+      - name: practiceSetId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/practice-attempts/{attemptId}/wrong-book:
+    post:
+      tags:
+      - 学生端
+      summary: 加入错题本
+      description: 学生显式将某次错误 attempt 加入错题本；幂等，重复添加返回同一 wrongItemId。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              reason: 我把BFS和DFS的数据结构记反了
+      parameters:
+      - name: attemptId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/wrong-book:
+    get:
+      tags:
+      - 学生端
+      summary: 错题本列表
+      description: 分页查询错题，支持知识点和状态过滤。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: knowledgePointId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: string
+  /api/v1/student/wrong-book/{wrongItemId}/review:
+    post:
+      tags:
+      - 学生端
+      summary: 复习错题
+      description: 记录一次错题复习/重做结果。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              answer: 队列
+              durationSeconds: 18
+      parameters:
+      - name: wrongItemId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/student/growth:
+    get:
+      tags:
+      - 学生端
+      summary: 成长页
+      description: 读取学生长期 GrowthReadModel，展示学习、错题修复和干预前后变化。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: courseId
+        in: query
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/workbench:
+    get:
+      tags:
+      - 教师端
+      summary: 教师工作台
+      description: 教师待办、重点学生、待确认建议和待验证干预。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/teacher/students/{studentId}/profile:
+    get:
+      tags:
+      - 教师端
+      summary: 学生画像
+      description: 教师查看单学生业务画像；聚合 cohort 分析跳 SmartBI。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: courseId
+        in: query
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/diagnosis-cases/{caseId}:
+    get:
+      tags:
+      - 教师端
+      summary: 诊断 Case 详情
+      description: 读取诊断假设、支持证据、反向证据和状态。
+      operationId: Case
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/analysis-recommendations:
+    post:
+      tags:
+      - 教师端
+      summary: 记录 SmartBI AIChat 建议
+      description: '把 SmartBI AIChat 已展示的分析建议结构化记录到业务系统。初期为 MANUAL_CAPTURE；未来可由平台
+        Adapter 调同一 Service。
+
+
+        不得宣称 SmartBI 已自动回调；挑战杯租户 API 能力未验证前由教师人工确认录入/选择。'
+      operationId: SmartBIAIChat
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              studentId: stu-xiaoming
+              courseId: course-data-structures
+              classId: class-cs-2024-01
+              knowledgePointId: kp-graph-bfs-dfs
+              analysisSummary: 两道诊断题均错误，主要集中在访问顺序和回溯。
+              candidates:
+              - strategyCode: CONCEPT_REMEDIATION
+                title: 方案A
+                rationale: 先纠正概念边界
+                actionDescription: 概念辨析+低难度专项
+              - strategyCode: VISUAL_TRANSFER_PRACTICE
+                title: 方案B
+                rationale: 用可视化过程建立正确迁移
+                actionDescription: BFS/DFS过程演示+变式练习
+              - strategyCode: AI_GUIDED_VARIATION
+                title: 方案C
+                rationale: 持续个性化反馈
+                actionDescription: AI Coach引导+分层变式
+              source: SMARTBI_AICHAT
+  /api/v1/teacher/interventions:
+    post:
+      tags:
+      - 教师端
+      summary: 创建正式干预
+      description: 教师从 Recommendation 中选择一个 strategy；B 运行 EffectEstimator 后创建 PROPOSED
+        Intervention。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              recommendationId: rec-001
+              strategyCode: VISUAL_TRANSFER_PRACTICE
+              teacherRationale: 小明当前主要问题是遍历过程混淆，优先用可视化和迁移题验证。
+  /api/v1/teacher/interventions/{interventionId}/approve:
+    post:
+      tags:
+      - 教师端
+      summary: 批准干预
+      description: 教师审批 PROPOSED → APPROVED。需要 If-Match。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example: {}
+      parameters:
+      - name: interventionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/interventions/{interventionId}/commit:
+    post:
+      tags:
+      - 教师端
+      summary: 提交并下发干预
+      description: APPROVED → COMMITTED，并创建 InterventionAssignment 给学生 Today。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              dueAt: '2026-08-29T18:00:00+08:00'
+      parameters:
+      - name: interventionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/interventions/{interventionId}:
+    get:
+      tags:
+      - 教师端
+      summary: 干预详情
+      description: 读取完整生命周期、预测、Assignment 和学生执行状态。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: interventionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/teacher/interventions/{interventionId}/outcome:
+    get:
+      tags:
+      - 教师端
+      summary: 干预结果
+      description: 学生完成后读取 B 权威 InterventionOutcome。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: interventionId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/admin/knowledge/documents:
+    post:
+      tags:
+      - 知识库
+      summary: 上传课程资料
+      description: 上传 PDF/DOCX/TXT/MD，建立课程知识库。使用 multipart/form-data。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+    get:
+      tags:
+      - 知识库
+      summary: 课程资料列表
+      description: 查看解析/索引状态。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: courseId
+        in: query
+        required: true
+        schema:
+          type: string
+  /api/v1/admin/knowledge/documents/{documentId}/index:
+    post:
+      tags:
+      - 知识库
+      summary: 索引课程资料
+      description: 解析、切块、Embedding 并写入 pgvector；幂等重建。
+      operationId: ''
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example: {}
+      parameters:
+      - name: documentId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/analytics/smartbi/datasets:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 数据集清单
+      description: 返回 canonical dataset 元数据、字段版本和可用行数。
+      operationId: AnalyticsSmartBI
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/analytics/smartbi/freshness:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 数据新鲜度
+      description: 查看业务事实投影到 exchange 的延迟。
+      operationId: AnalyticsSmartBI
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/analytics/smartbi/exports:
+    post:
+      tags:
+      - Analytics/SmartBI
+      summary: 创建 CSV 导出
+      description: 生成 Baseline + active demo run 的 canonical CSV 包，作为 SmartBI 上传保底。
+      operationId: AnalyticsSmartBICSV
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              scope: ACTIVE_DEMO
+              demoRunId: demo-run-001
+  /api/v1/analytics/smartbi/exports/{exportId}:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 查询 CSV 导出
+      description: 查询导出状态与下载文件清单。
+      operationId: AnalyticsSmartBICSV
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: exportId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/analytics/demo-traces/{demoCaseId}:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: Demo Trace
+      description: 按 demoCaseId 汇总全链 trace，供验收/调试，不作为普通学生UI。
+      operationId: AnalyticsSmartBIDemoTrace
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: demoCaseId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: demoRunId
+        in: query
+        required: true
+        schema:
+          type: string
+  /api/v1/integrations/smartbi/assets:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: SmartBI 资产列表
+      description: '返回四 Dashboard、AIChat/报告入口的实际平台资产状态。
+
+
+        真实 resourceUrl/iframe 只有比赛租户验证后配置，不得造假。'
+      operationId: AnalyticsSmartBISmartBI
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/integrations/smartbi/assets/{assetKey}:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: SmartBI 资产详情
+      description: 根据 assetKey 返回验证后的 SmartBI URL/launchMode。
+      operationId: AnalyticsSmartBISmartBI
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: assetKey
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/demo/runs:
+    post:
+      tags:
+      - 演示支撑
+      summary: 创建 Demo Run
+      description: 创建一轮可重复 Golden Demo；不重建 baseline。仅 DEMO profile 可用。
+      operationId: DemoRun
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example:
+              demoCaseId: DEMO-GRAPH-001
+              baselineVersion: baseline-ds-v1
+  /api/v1/demo/runs/{demoRunId}:
+    get:
+      tags:
+      - 演示支撑
+      summary: 查询 Demo Run
+      description: 查询当前演示阶段和关键实体引用。
+      operationId: DemoRun
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      parameters:
+      - name: demoRunId
+        in: path
+        required: true
+        schema:
+          type: string
+  /api/v1/demo/runs/{demoRunId}/reset:
+    post:
+      tags:
+      - 演示支撑
+      summary: 重置 Demo Run
+      description: 关闭旧 run 并创建新 active run；baseline 不删除，旧 run 不计入当前聚合。
+      operationId: DemoRun
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+            example: {}
+      parameters:
+      - name: demoRunId
+        in: path
+        required: true
+        schema:
+          type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiEnvelope:
+      type: object
+      required:
+      - code
+      - message
+      - requestId
+      - timestamp
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        data: {}
+        details:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+security:
+- bearerAuth: []
