@@ -3,6 +3,12 @@ package com.zhijiao.foundation.error;
 import com.zhijiao.foundation.api.ApiEnvelope;
 import com.zhijiao.foundation.demo.DemoRunNotFoundException;
 import com.zhijiao.foundation.student.learning.LearningStateNotFoundException;
+import com.zhijiao.foundation.knowledge.KnowledgeUnavailableException;
+import com.zhijiao.foundation.student.coach.CoachSessionNotFoundException;
+import com.zhijiao.foundation.student.coach.DiagnosticValidationException;
+import com.zhijiao.foundation.student.coach.InvalidLlmOutputException;
+import com.zhijiao.foundation.student.coach.LlmTimeoutException;
+import com.zhijiao.foundation.student.coach.LlmUnavailableException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -47,6 +53,33 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiEnvelope<Void>> learningStateNotFound(LearningStateNotFoundException exception,
                                                               HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(CoachSessionNotFoundException.class)
+    ResponseEntity<ApiEnvelope<Void>> coachSessionNotFound(CoachSessionNotFoundException exception,
+                                                            HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "SESSION_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(KnowledgeUnavailableException.class)
+    ResponseEntity<ApiEnvelope<Void>> knowledgeUnavailable(KnowledgeUnavailableException exception,
+                                                             HttpServletRequest request) {
+        return response(HttpStatus.SERVICE_UNAVAILABLE, "RAG_UNAVAILABLE", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(LlmTimeoutException.class)
+    ResponseEntity<ApiEnvelope<Void>> llmTimeout(LlmTimeoutException exception, HttpServletRequest request) {
+        return response(HttpStatus.GATEWAY_TIMEOUT, "UPSTREAM_TIMEOUT", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(LlmUnavailableException.class)
+    ResponseEntity<ApiEnvelope<Void>> llmUnavailable(LlmUnavailableException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_GATEWAY, "AI_UPSTREAM_ERROR", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler({DiagnosticValidationException.class, InvalidLlmOutputException.class})
+    ResponseEntity<ApiEnvelope<Void>> invalidLlmOutput(RuntimeException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_GATEWAY, "LLM_OUTPUT_INVALID", exception.getMessage(), null, request);
     }
 
     @ExceptionHandler(IllegalStateException.class)

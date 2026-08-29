@@ -37,6 +37,17 @@ security:
     issuer: ${JWT_ISSUER:zhijiao-golden-demo-v2}
 
 app:
+  coach:
+    llm:
+      provider: ${LLM_PROVIDER:openai-compatible}
+      base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+      api-key: ${LLM_API_KEY:}
+      model: ${LLM_MODEL:gpt-4o-mini}
+      timeout-seconds: ${LLM_TIMEOUT_SECONDS:30}
+      max-diagnostic-retries: ${LLM_MAX_DIAGNOSTIC_RETRIES:1}
+      prompt-version: ${LLM_PROMPT_VERSION:coach-prompt-v1}
+    rag:
+      top-k: ${RAG_TOP_K:4}
   learning:
     bkt:
       initial-mastery: ${BKT_INITIAL_MASTERY:0.20}

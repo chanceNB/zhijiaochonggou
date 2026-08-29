@@ -30,7 +30,12 @@ class OpenApiContractTest {
                     "/demo/runs/{demoRunId}/reset",
                     "/analytics/demo-traces/{demoCaseId}",
                     "/student/learning-state",
-                    "/student/growth");
+                    "/student/growth",
+                    "/student/coach/sessions",
+                    "/student/coach/sessions/{sessionId}",
+                    "/student/coach/sessions/{sessionId}/messages",
+                    "/student/coach/sessions/{sessionId}/diagnostic-sets",
+                    "/admin/knowledge/documents");
         }
     }
 }

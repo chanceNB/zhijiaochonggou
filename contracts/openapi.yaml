@@ -73,6 +73,140 @@ paths:
                 $ref: '#/components/schemas/ApiEnvelopeGrowthReadModel'
         '404':
           $ref: '#/components/responses/ResourceNotFound'
+  /student/coach/sessions:
+    post:
+      operationId: createCoachSession
+      summary: Create an AI Coach session
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCoachSessionRequest'
+      responses:
+        '200':
+          description: Coach session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeCoachSessionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /student/coach/sessions/{sessionId}:
+    get:
+      operationId: getCoachSession
+      summary: Recover an AI Coach session
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      responses:
+        '200':
+          description: Coach session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeCoachSessionResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+  /student/coach/sessions/{sessionId}/messages:
+    post:
+      operationId: sendCoachMessage
+      summary: Send a student message to AI Coach
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachMessageRequest'
+      responses:
+        '200':
+          description: Coach response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeCoachMessageResponse'
+        '404':
+          $ref: '#/components/responses/SessionNotFound'
+        '502':
+          $ref: '#/components/responses/AiUpstreamError'
+        '503':
+          $ref: '#/components/responses/RagUnavailable'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+  /student/coach/sessions/{sessionId}/diagnostic-sets:
+    post:
+      operationId: generateDiagnosticSet
+      summary: Generate exactly two structured diagnostic questions
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticSetRequest'
+      responses:
+        '200':
+          description: Structured diagnostic set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeDiagnosticSetResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          $ref: '#/components/responses/LlmOutputInvalid'
+  /admin/knowledge/documents:
+    post:
+      operationId: ingestKnowledgeDocument
+      summary: Ingest and index a text course document
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeDocumentRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [courseId, file]
+              properties:
+                courseId: {type: string}
+                knowledgePointId: {type: string}
+                title: {type: string}
+                sourceVersion: {type: string}
+                dataOrigin: {type: string}
+                file: {type: string, format: binary}
+      responses:
+        '200':
+          description: Indexed document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeKnowledgeDocumentResponse'
+    get:
+      operationId: listKnowledgeDocuments
+      summary: List course knowledge documents
+      parameters:
+        - name: courseId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Knowledge documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeKnowledgeDocumentListResponse'
   /demo/runs:
     post:
       operationId: createDemoRun
@@ -442,6 +576,203 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/GrowthReadModel'
+    CreateCoachSessionRequest:
+      type: object
+      required: [studentId, courseId]
+      properties:
+        courseId:
+          type: string
+        knowledgePointId:
+          type: string
+        mode:
+          type: string
+          enum: [TUTOR, DIAGNOSTIC]
+        studentId:
+          type: string
+    CoachLearningContext:
+      type: object
+      required: [mastery, confidence, forgettingRisk, weaknessScore, modelVersion, sourceVersion]
+      properties:
+        mastery: {type: number, minimum: 0, maximum: 1}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        forgettingRisk: {type: number, minimum: 0, maximum: 1}
+        weaknessScore: {type: number, minimum: 0, maximum: 1}
+        reasonCodes: {type: string}
+        modelVersion: {type: string}
+        sourceVersion: {type: string}
+    Citation:
+      type: object
+      required: [documentId, chunkId, title, excerpt, score]
+      properties:
+        documentId: {type: string}
+        chunkId: {type: string}
+        title: {type: string}
+        excerpt: {type: string}
+        score: {type: number, minimum: 0, maximum: 1}
+    QuestionOption:
+      type: object
+      required: [optionId, text]
+      properties:
+        optionId: {type: string}
+        text: {type: string}
+    DiagnosticTarget:
+      type: object
+      required: [code, description]
+      properties:
+        code: {type: string}
+        description: {type: string}
+    DiagnosticQuestion:
+      type: object
+      required: [questionId, knowledgePointId, questionType, stem, options, correctAnswer,
+                 explanation, diagnosticTarget, difficulty, citations]
+      properties:
+        questionId: {type: string}
+        knowledgePointId: {type: string}
+        questionType:
+          type: string
+          enum: [SINGLE_CHOICE]
+        stem: {type: string}
+        options:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionOption'}
+        correctAnswer: {type: string}
+        explanation: {type: string}
+        diagnosticTarget: {$ref: '#/components/schemas/DiagnosticTarget'}
+        difficulty: {type: number, minimum: 0, maximum: 1}
+        citations:
+          type: array
+          items: {$ref: '#/components/schemas/Citation'}
+        modelProvider: {type: string}
+        modelVersion: {type: string}
+        promptVersion: {type: string}
+    CoachMessage:
+      type: object
+      required: [messageId, sessionId, messageType, content, ragStatus, createdAt]
+      properties:
+        messageId: {type: string}
+        sessionId: {type: string}
+        messageType: {type: string, enum: [USER, ASSISTANT, ACTION, DIAGNOSTIC]}
+        content: {type: string}
+        ragStatus: {type: string, enum: [INDEXED, EMPTY, DEGRADED]}
+        createdAt: {type: string, format: date-time}
+        citations:
+          type: array
+          items: {$ref: '#/components/schemas/Citation'}
+    CoachSessionResponse:
+      type: object
+      required: [sessionId, studentId, courseId, mode, status, ragStatus, context, messages, diagnosticQuestions]
+      properties:
+        sessionId: {type: string}
+        studentId: {type: string}
+        courseId: {type: string}
+        knowledgePointId: {type: string, nullable: true}
+        mode: {type: string, enum: [TUTOR, DIAGNOSTIC]}
+        status: {type: string, enum: [ACTIVE, CLOSED]}
+        ragStatus: {type: string, enum: [INDEXED, EMPTY, DEGRADED]}
+        context: {$ref: '#/components/schemas/CoachLearningContext'}
+        messages:
+          type: array
+          items: {$ref: '#/components/schemas/CoachMessage'}
+        diagnosticQuestions:
+          type: array
+          items: {$ref: '#/components/schemas/DiagnosticQuestion'}
+    CoachMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message: {type: string, minLength: 1}
+    CoachAction:
+      type: object
+      required: [type, label]
+      properties:
+        type: {type: string}
+        label: {type: string}
+    CoachMessageResponse:
+      type: object
+      required: [assistantMessage, citations, actions, ragStatus]
+      properties:
+        assistantMessage: {type: string}
+        citations:
+          type: array
+          items: {$ref: '#/components/schemas/Citation'}
+        actions:
+          type: array
+          items: {$ref: '#/components/schemas/CoachAction'}
+        ragStatus: {type: string, enum: [INDEXED, EMPTY, DEGRADED]}
+    DiagnosticSetRequest:
+      type: object
+      required: [knowledgePointId, questionCount]
+      properties:
+        knowledgePointId: {type: string}
+        questionCount: {type: integer, enum: [2]}
+    DiagnosticSetResponse:
+      type: object
+      required: [practiceSetId, questionCount, questions, ragStatus]
+      properties:
+        practiceSetId: {type: string}
+        questionCount: {type: integer, enum: [2]}
+        questions:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: {$ref: '#/components/schemas/DiagnosticQuestion'}
+        ragStatus: {type: string, enum: [INDEXED, EMPTY, DEGRADED]}
+    KnowledgeDocumentRequest:
+      type: object
+      required: [courseId, title, content]
+      properties:
+        courseId: {type: string}
+        title: {type: string}
+        source: {type: string}
+        content: {type: string, minLength: 1}
+        knowledgePointId: {type: string}
+        sourceVersion: {type: string}
+        dataOrigin: {type: string}
+    KnowledgeDocumentResponse:
+      type: object
+      required: [documentId, title, status, chunkCount]
+      properties:
+        documentId: {type: string}
+        title: {type: string}
+        status: {type: string, enum: [UPLOADED, INDEXED, FAILED]}
+        chunkCount: {type: integer, minimum: 0}
+    KnowledgeDocumentListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/KnowledgeDocumentResponse'}
+    ApiEnvelopeCoachSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/CoachSessionResponse'}
+    ApiEnvelopeCoachMessageResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/CoachMessageResponse'}
+    ApiEnvelopeDiagnosticSetResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/DiagnosticSetResponse'}
+    ApiEnvelopeKnowledgeDocumentResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/KnowledgeDocumentResponse'}
+    ApiEnvelopeKnowledgeDocumentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/KnowledgeDocumentListResponse'}
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -452,6 +783,12 @@ components:
         minLength: 1
     DemoRunId:
       name: demoRunId
+      in: path
+      required: true
+      schema:
+          type: string
+    CoachSessionId:
+      name: sessionId
       in: path
       required: true
       schema:
@@ -471,6 +808,36 @@ components:
             $ref: '#/components/schemas/ApiEnvelope'
     StateConflict:
       description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    SessionNotFound:
+      description: Coach session not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    AiUpstreamError:
+      description: LLM provider unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    RagUnavailable:
+      description: Knowledge search unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    UpstreamTimeout:
+      description: Upstream timeout
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    LlmOutputInvalid:
+      description: Structured LLM output failed validation
       content:
         application/json:
           schema:

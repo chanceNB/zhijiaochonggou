@@ -112,6 +112,7 @@ paths:
               type: object
               additionalProperties: true
             example:
+              studentId: stu-xiaoming
               courseId: course-data-structures
               knowledgePointId: kp-graph-bfs-dfs
               mode: DIAGNOSTIC

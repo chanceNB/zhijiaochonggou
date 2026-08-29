@@ -188,6 +188,7 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 
 | 参数名 | 中文描述 | 类型 | 约束 |
 |---|---|---|---|
+| studentId | 学生ID（未接入认证时显式传入） | String | 必填 |
 | courseId | 课程ID | String | 必填 |
 | knowledgePointId | 知识点ID | String | 选填 |
 | mode | 会话模式 | Enum | TUTOR/DIAGNOSTIC |
@@ -195,6 +196,7 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 请求示例：
 ```json
 {
+  "studentId": "stu-xiaoming",
   "courseId": "course-data-structures",
   "knowledgePointId": "kp-graph-bfs-dfs",
   "mode": "DIAGNOSTIC"
