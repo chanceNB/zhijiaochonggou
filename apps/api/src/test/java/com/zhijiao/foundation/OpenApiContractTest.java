@@ -28,7 +28,9 @@ class OpenApiContractTest {
                     "/demo/runs",
                     "/demo/runs/{demoRunId}",
                     "/demo/runs/{demoRunId}/reset",
-                    "/analytics/demo-traces/{demoCaseId}");
+                    "/analytics/demo-traces/{demoCaseId}",
+                    "/student/learning-state",
+                    "/student/growth");
         }
     }
 }

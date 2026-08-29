@@ -33,6 +33,8 @@ class BaselineSeedServiceTest {
 
     @BeforeEach
     void cleanDatabase() {
+        jdbcTemplate.update("delete from app.weak_knowledge_point_candidates");
+        jdbcTemplate.update("delete from app.student_learning_abilities");
         jdbcTemplate.update("delete from app.demo_runs");
         jdbcTemplate.update("delete from app.practice_attempts");
         jdbcTemplate.update("delete from app.learning_events");

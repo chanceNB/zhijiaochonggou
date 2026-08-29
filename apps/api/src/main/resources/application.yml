@@ -35,3 +35,35 @@ security:
   jwt:
     enabled: ${JWT_ENABLED:false}
     issuer: ${JWT_ISSUER:zhijiao-golden-demo-v2}
+
+app:
+  learning:
+    bkt:
+      initial-mastery: ${BKT_INITIAL_MASTERY:0.20}
+      transition: ${BKT_TRANSITION:0.15}
+      slip: ${BKT_SLIP:0.10}
+      guess: ${BKT_GUESS:0.20}
+      model-version: ${BKT_MODEL_VERSION:BKT_V1_FIXED_PARAMS}
+    rasch:
+      prior-mean: ${RASCH_PRIOR_MEAN:0.0}
+      prior-variance: ${RASCH_PRIOR_VARIANCE:1.0}
+      difficulty-epsilon: ${RASCH_DIFFICULTY_EPSILON:0.000001}
+      max-iterations: ${RASCH_MAX_ITERATIONS:100}
+      tolerance: ${RASCH_TOLERANCE:0.0000000001}
+      model-version: ${RASCH_MODEL_VERSION:RASCH_MAP_V1}
+    forgetting:
+      window-days: ${FORGETTING_WINDOW_DAYS:30.0}
+      density-target: ${FORGETTING_DENSITY_TARGET:5.0}
+      recency-weight: ${FORGETTING_RECENCY_WEIGHT:0.50}
+      gap-weight: ${FORGETTING_GAP_WEIGHT:0.20}
+      sparsity-weight: ${FORGETTING_SPARSITY_WEIGHT:0.20}
+      mastery-weight: ${FORGETTING_MASTERY_WEIGHT:0.10}
+      model-version: ${FORGETTING_MODEL_VERSION:RECENCY_GAP_V1}
+    confidence:
+      evidence-scale: ${CONFIDENCE_EVIDENCE_SCALE:3.0}
+      recency-window-days: ${CONFIDENCE_RECENCY_WINDOW_DAYS:30.0}
+      evidence-weight: ${CONFIDENCE_EVIDENCE_WEIGHT:0.40}
+      uncertainty-weight: ${CONFIDENCE_UNCERTAINTY_WEIGHT:0.25}
+      consistency-weight: ${CONFIDENCE_CONSISTENCY_WEIGHT:0.20}
+      recency-weight: ${CONFIDENCE_RECENCY_WEIGHT:0.15}
+      model-version: ${CONFIDENCE_MODEL_VERSION:STATE_CONFIDENCE_V1}

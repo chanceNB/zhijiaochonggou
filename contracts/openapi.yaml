@@ -17,6 +17,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelopeHealthStatus'
+  /student/learning-state:
+    get:
+      operationId: getStudentLearningState
+      summary: Read derived student learning state
+      description: Returns T02 algorithm-derived state; the frontend does not calculate mastery.
+      parameters:
+        - name: courseId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: knowledgePointId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Derived learning state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeLearningStateResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+  /student/growth:
+    get:
+      operationId: getStudentGrowth
+      summary: Read the student growth foundation read model
+      parameters:
+        - name: courseId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Growth read model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeGrowthReadModel'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
   /demo/runs:
     post:
       operationId: createDemoRun
@@ -261,6 +317,131 @@ components:
         service:
           type: string
           example: foundation-api
+    LearningStateResponse:
+      type: object
+      required: [studentId, courseId, knowledgePointId, knowledgePointName, mastery,
+                 confidence, forgettingRisk, evidenceCount, lastEvidenceAt, theta,
+                 thetaUncertainty, masteryModelVersion, abilityModelVersion,
+                 forgettingModelVersion, confidenceModelVersion, weakKnowledgePoints]
+      properties:
+        studentId:
+          type: string
+        courseId:
+          type: string
+        knowledgePointId:
+          type: string
+        knowledgePointName:
+          type: string
+        mastery:
+          type: number
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        forgettingRisk:
+          type: number
+          minimum: 0
+          maximum: 1
+        evidenceCount:
+          type: integer
+          minimum: 1
+        lastEvidenceAt:
+          type: string
+          format: date-time
+        theta:
+          type: number
+        thetaUncertainty:
+          type: number
+          exclusiveMinimum: 0
+        masteryModelVersion:
+          type: string
+        abilityModelVersion:
+          type: string
+        forgettingModelVersion:
+          type: string
+        confidenceModelVersion:
+          type: string
+        weakKnowledgePoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeakKnowledgePointResponse'
+    WeakKnowledgePointResponse:
+      type: object
+      required: [knowledgePointId, name, weaknessScore, confidence, evidenceCount, rank, reasonCodes]
+      properties:
+        knowledgePointId:
+          type: string
+        name:
+          type: string
+        weaknessScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        evidenceCount:
+          type: integer
+          minimum: 1
+        rank:
+          type: integer
+          minimum: 1
+        reasonCodes:
+          type: array
+          items:
+            type: string
+    ApiEnvelopeLearningStateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/LearningStateResponse'
+    GrowthReadModel:
+      type: object
+      required: [studentId, courseId, mastery, trend, completedTasks, repairedMisconceptions]
+      properties:
+        studentId:
+          type: string
+        courseId:
+          type: string
+        mastery:
+          type: number
+          minimum: 0
+          maximum: 1
+        trend:
+          type: array
+          items:
+            type: object
+            required: [date, mastery]
+            properties:
+              date:
+                type: string
+                format: date
+              mastery:
+                type: number
+                minimum: 0
+                maximum: 1
+        completedTasks:
+          type: integer
+          minimum: 0
+        repairedMisconceptions:
+          type: integer
+          minimum: 0
+        latestIntervention:
+          nullable: true
+          type: object
+          additionalProperties: true
+    ApiEnvelopeGrowthReadModel:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/GrowthReadModel'
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

@@ -2,6 +2,7 @@ package com.zhijiao.foundation.error;
 
 import com.zhijiao.foundation.api.ApiEnvelope;
 import com.zhijiao.foundation.demo.DemoRunNotFoundException;
+import com.zhijiao.foundation.student.learning.LearningStateNotFoundException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DemoRunNotFoundException.class)
     ResponseEntity<ApiEnvelope<Void>> notFound(DemoRunNotFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(LearningStateNotFoundException.class)
+    ResponseEntity<ApiEnvelope<Void>> learningStateNotFound(LearningStateNotFoundException exception,
+                                                              HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
     }
 
