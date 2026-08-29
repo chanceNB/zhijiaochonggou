@@ -161,6 +161,198 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '502':
           $ref: '#/components/responses/LlmOutputInvalid'
+  /student/coach/sessions/{sessionId}/similar-questions:
+    post:
+      operationId: generateSimilarQuestions
+      summary: Generate structured questions from an incorrect attempt
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilarQuestionRequest'
+      responses:
+        '200':
+          description: Structured similar-question practice set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeSimilarSetResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '502':
+          $ref: '#/components/responses/LlmOutputInvalid'
+  /student/practice-sets/{practiceSetId}:
+    get:
+      operationId: getPracticeSet
+      summary: Read a student practice set without answer keys
+      parameters:
+        - $ref: '#/components/parameters/PracticeSetId'
+      responses:
+        '200':
+          description: Practice set and student-safe questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopePracticeSetResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+  /student/practice-sets/{practiceSetId}/attempts:
+    post:
+      operationId: submitPracticeAttempt
+      summary: Submit one practice answer and receive server grading
+      parameters:
+        - $ref: '#/components/parameters/PracticeSetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitAttemptRequest'
+      responses:
+        '200':
+          description: Server-graded attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopePracticeAttemptResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+        '422':
+          $ref: '#/components/responses/DomainRuleViolation'
+  /student/practice-sets/{practiceSetId}/complete:
+    post:
+      operationId: completePracticeSet
+      summary: Complete a practice set and recompute scoped learning state
+      parameters:
+        - $ref: '#/components/parameters/PracticeSetId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Practice outcome
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopePracticeOutcome'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /student/practice-attempts/{attemptId}/wrong-book:
+    post:
+      operationId: addAttemptToWrongBook
+      summary: Explicitly add an incorrect attempt to the wrong book
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWrongBookRequest'
+      responses:
+        '200':
+          description: Wrong-book item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeWrongBookItem'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '422':
+          $ref: '#/components/responses/DomainRuleViolation'
+  /student/wrong-book:
+    get:
+      operationId: listWrongBook
+      summary: List wrong-book items
+      parameters:
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+        - name: knowledgePointId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [TO_REVIEW, LEARNING, MASTERED]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated wrong-book items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeWrongBookPage'
+  /student/wrong-book/{wrongItemId}/review:
+    post:
+      operationId: reviewWrongBookItem
+      summary: Submit a wrong-book review answer
+      parameters:
+        - $ref: '#/components/parameters/WrongBookItemId'
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewWrongBookRequest'
+      responses:
+        '200':
+          description: Review result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeWrongBookReviewResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '422':
+          $ref: '#/components/responses/DomainRuleViolation'
   /admin/knowledge/documents:
     post:
       operationId: ingestKnowledgeDocument
@@ -717,6 +909,149 @@ components:
           maxItems: 2
           items: {$ref: '#/components/schemas/DiagnosticQuestion'}
         ragStatus: {type: string, enum: [INDEXED, EMPTY, DEGRADED]}
+    SimilarQuestionRequest:
+      type: object
+      required: [sourceAttemptId, count]
+      properties:
+        sourceAttemptId: {type: string}
+        count: {type: integer, minimum: 1, maximum: 3}
+    SimilarSetResponse:
+      type: object
+      required: [practiceSetId, questions]
+      properties:
+        practiceSetId: {type: string}
+        questions:
+          type: array
+          items: {$ref: '#/components/schemas/StudentQuestion'}
+    StudentQuestion:
+      type: object
+      required: [questionId, knowledgePointId, questionType, stem, options, difficulty]
+      properties:
+        questionId: {type: string}
+        knowledgePointId: {type: string}
+        questionType:
+          type: string
+          enum: [SINGLE_CHOICE]
+        stem: {type: string}
+        options:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionOption'}
+        difficulty: {type: number, minimum: 0, maximum: 1}
+    PracticeAttemptSummary:
+      type: object
+      required: [attemptId, questionId, correct, responseTimeMs, attemptTime]
+      properties:
+        attemptId: {type: string}
+        questionId: {type: string}
+        selectedAnswer: {type: string, nullable: true}
+        correct: {type: boolean}
+        responseTimeMs: {type: integer, minimum: 0}
+        attemptTime: {type: string, format: date-time}
+    PracticeSetResponse:
+      type: object
+      required: [practiceSetId, studentId, courseId, source, status, questions, attempts]
+      properties:
+        practiceSetId: {type: string}
+        studentId: {type: string}
+        courseId: {type: string}
+        source:
+          type: string
+          enum: [AI_COACH_DIAGNOSTIC, AI_COACH_SIMILAR, TEACHER_ASSIGNMENT]
+        status:
+          type: string
+          enum: [OPEN, COMPLETED]
+        coachSessionId: {type: string, nullable: true}
+        demoCaseId: {type: string, nullable: true}
+        questions:
+          type: array
+          items: {$ref: '#/components/schemas/StudentQuestion'}
+        attempts:
+          type: array
+          items: {$ref: '#/components/schemas/PracticeAttemptSummary'}
+    SubmitAttemptRequest:
+      type: object
+      required: [questionId, answer, durationSeconds]
+      properties:
+        questionId: {type: string}
+        answer:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        durationSeconds: {type: integer, minimum: 1}
+    PracticeAttemptResponse:
+      type: object
+      required: [attemptId, correct, canAddWrongBook, canGenerateSimilar]
+      properties:
+        attemptId: {type: string}
+        correct: {type: boolean}
+        correctAnswer: {type: string, nullable: true}
+        explanation: {type: string, nullable: true}
+        misconceptionCode: {type: string, nullable: true}
+        canAddWrongBook: {type: boolean}
+        canGenerateSimilar: {type: boolean}
+    PracticeOutcome:
+      type: object
+      required: [outcomeId, practiceSetId, accuracy, attemptCount, learningStateStatus]
+      properties:
+        outcomeId: {type: string}
+        practiceSetId: {type: string}
+        accuracy: {type: number, minimum: 0, maximum: 1}
+        attemptCount: {type: integer, minimum: 0}
+        learningStateStatus: {type: string}
+    AddWrongBookRequest:
+      type: object
+      properties:
+        reason: {type: string, nullable: true}
+    WrongBookItem:
+      type: object
+      required: [wrongItemId, studentId, courseId, classId, questionId, sourceAttemptId,
+                 knowledgePointId, status, reviewCount, addedAt, dataOrigin, sourceVersion]
+      properties:
+        wrongItemId: {type: string}
+        studentId: {type: string}
+        courseId: {type: string}
+        classId: {type: string}
+        questionId: {type: string}
+        sourceAttemptId: {type: string}
+        knowledgePointId: {type: string}
+        reason: {type: string, nullable: true}
+        status: {type: string, enum: [TO_REVIEW, LEARNING, MASTERED]}
+        reviewCount: {type: integer, minimum: 0}
+        addedAt: {type: string, format: date-time}
+        repairedAt: {type: string, format: date-time, nullable: true}
+        dataOrigin: {type: string}
+        demoRunId: {type: string, nullable: true}
+        demoCaseId: {type: string, nullable: true}
+        correlationId: {type: string, nullable: true}
+        sourceVersion: {type: string}
+    WrongBookPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/WrongBookItem'}
+        page: {type: integer, minimum: 1}
+        size: {type: integer, minimum: 1, maximum: 100}
+        total: {type: integer, minimum: 0}
+    ReviewWrongBookRequest:
+      type: object
+      required: [answer, durationSeconds]
+      properties:
+        answer:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        durationSeconds: {type: integer, minimum: 1}
+    WrongBookReviewResponse:
+      type: object
+      required: [correct, status, reviewCount]
+      properties:
+        correct: {type: boolean}
+        status: {type: string, enum: [TO_REVIEW, LEARNING, MASTERED]}
+        reviewCount: {type: integer, minimum: 0}
     KnowledgeDocumentRequest:
       type: object
       required: [courseId, title, content]
@@ -761,6 +1096,48 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/DiagnosticSetResponse'}
+    ApiEnvelopeSimilarSetResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/SimilarSetResponse'}
+    ApiEnvelopePracticeSetResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PracticeSetResponse'}
+    ApiEnvelopePracticeAttemptResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PracticeAttemptResponse'}
+    ApiEnvelopePracticeOutcome:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/PracticeOutcome'}
+    ApiEnvelopeWrongBookItem:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/WrongBookItem'}
+    ApiEnvelopeWrongBookPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/WrongBookPage'}
+    ApiEnvelopeWrongBookReviewResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/WrongBookReviewResponse'}
     ApiEnvelopeKnowledgeDocumentResponse:
       allOf:
         - $ref: '#/components/schemas/ApiEnvelope'
@@ -793,6 +1170,24 @@ components:
       required: true
       schema:
         type: string
+    PracticeSetId:
+      name: practiceSetId
+      in: path
+      required: true
+      schema:
+        type: string
+    AttemptId:
+      name: attemptId
+      in: path
+      required: true
+      schema:
+        type: string
+    WrongBookItemId:
+      name: wrongItemId
+      in: path
+      required: true
+      schema:
+        type: string
   responses:
     ValidationError:
       description: Validation error
@@ -808,6 +1203,12 @@ components:
             $ref: '#/components/schemas/ApiEnvelope'
     StateConflict:
       description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    DomainRuleViolation:
+      description: Domain rule violation
       content:
         application/json:
           schema:

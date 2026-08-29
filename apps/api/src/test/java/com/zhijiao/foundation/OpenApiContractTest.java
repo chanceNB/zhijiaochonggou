@@ -35,7 +35,20 @@ class OpenApiContractTest {
                     "/student/coach/sessions/{sessionId}",
                     "/student/coach/sessions/{sessionId}/messages",
                     "/student/coach/sessions/{sessionId}/diagnostic-sets",
+                    "/student/coach/sessions/{sessionId}/similar-questions",
+                    "/student/practice-sets/{practiceSetId}",
+                    "/student/practice-sets/{practiceSetId}/attempts",
+                    "/student/practice-sets/{practiceSetId}/complete",
+                    "/student/practice-attempts/{attemptId}/wrong-book",
+                    "/student/wrong-book",
+                    "/student/wrong-book/{wrongItemId}/review",
                     "/admin/knowledge/documents");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> schemas = (Map<String, Object>) ((Map<String, Object>) document.get("components")).get("schemas");
+            assertThat(schemas).containsKeys("StudentQuestion", "PracticeSetResponse", "PracticeAttemptResponse",
+                    "PracticeOutcome", "WrongBookPage", "WrongBookReviewResponse", "ApiEnvelopePracticeSetResponse");
+            assertThat((Map<String, Object>) schemas.get("StudentQuestion")).doesNotContainKey("correctAnswer");
+            assertThat((Map<String, Object>) schemas.get("StudentQuestion")).doesNotContainKey("explanation");
         }
     }
 }

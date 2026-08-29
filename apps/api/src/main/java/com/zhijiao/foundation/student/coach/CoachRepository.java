@@ -90,6 +90,7 @@ public class CoachRepository {
                                     List<DiagnosticQuestion> questions, RagStatus ragStatus,
                                     LlmResponse response, String sourceVersion) {
         Instant generatedAt = Instant.now();
+        createPracticeSetForDiagnostics(practiceSetId, sessionId, sourceVersion, generatedAt);
         for (DiagnosticQuestion question : questions) {
             jdbcTemplate.update("""
                     insert into app.coach_diagnostic_questions
@@ -101,9 +102,36 @@ public class CoachRepository {
                     question.stem(), write(question.options()), question.correctAnswer(), question.explanation(),
                     write(question.diagnosticTarget()), question.difficulty(), response.provider(), response.modelVersion(),
                     response.promptVersion(), sourceVersion, timestamp(generatedAt));
-            insertCitations(sessionId, null, practiceSetId, question.questionId(), question.citations(), generatedAt);
+                    insertCitations(sessionId, null, practiceSetId, question.questionId(), question.citations(), generatedAt);
+            jdbcTemplate.update("""
+                    insert into app.practice_questions
+                        (practice_set_id, question_id, parent_question_id, knowledge_point_id, question_type,
+                         stem, options, correct_answer, explanation, diagnostic_target, difficulty,
+                         generation_reason, model_provider, model_version, prompt_version, citations,
+                         source_version, created_at)
+                    values (?, ?, null, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE_DIAGNOSIS', ?, ?, ?, ?, ?, ?)
+                    """, practiceSetId, question.questionId(), question.knowledgePointId(), question.questionType(),
+                    question.stem(), write(question.options()), question.correctAnswer(), question.explanation(),
+                    write(question.diagnosticTarget()), question.difficulty(), response.provider(), response.modelVersion(),
+                    response.promptVersion(), write(question.citations()), sourceVersion, timestamp(generatedAt));
         }
         return practiceSetId;
+    }
+
+    private void createPracticeSetForDiagnostics(String practiceSetId, String sessionId, String sourceVersion,
+                                                 Instant createdAt) {
+        jdbcTemplate.update("""
+                insert into app.practice_sets
+                    (practice_set_id, student_id, course_id, class_id, coach_session_id, source, status,
+                     demo_run_id, demo_case_id, correlation_id, source_version, created_at)
+                select ?, s.student_id, s.course_id, st.class_id, s.session_id, 'AI_COACH_DIAGNOSTIC', 'OPEN',
+                       d.demo_run_id, d.demo_case_id, d.correlation_id, ?, ?
+                from app.coach_sessions s
+                join app.students st on st.student_id = s.student_id
+                left join app.demo_runs d on d.student_id = s.student_id
+                    and d.course_id = s.course_id and d.status = 'ACTIVE'
+                where s.session_id = ?
+                """, practiceSetId, sourceVersion, timestamp(createdAt), sessionId);
     }
 
     public List<DiagnosticQuestion> findDiagnosticQuestions(String sessionId) {

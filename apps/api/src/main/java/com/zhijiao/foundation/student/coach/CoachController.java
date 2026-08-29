@@ -3,6 +3,9 @@ package com.zhijiao.foundation.student.coach;
 import com.zhijiao.foundation.api.ApiEnvelope;
 import com.zhijiao.foundation.knowledge.Citation;
 import com.zhijiao.foundation.web.RequestIdFilter;
+import com.zhijiao.foundation.student.practice.PracticeSetView;
+import com.zhijiao.foundation.student.practice.SimilarQuestionService;
+import com.zhijiao.foundation.student.practice.StudentQuestion;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -25,10 +28,12 @@ import java.util.List;
 @RequestMapping("/api/v1/student/coach")
 public class CoachController {
     private final CoachOrchestrator orchestrator;
+    private final SimilarQuestionService similarQuestionService;
     private final Clock clock;
 
-    public CoachController(CoachOrchestrator orchestrator, Clock clock) {
+    public CoachController(CoachOrchestrator orchestrator, SimilarQuestionService similarQuestionService, Clock clock) {
         this.orchestrator = orchestrator;
+        this.similarQuestionService = similarQuestionService;
         this.clock = clock;
     }
 
@@ -74,6 +79,16 @@ public class CoachController {
                 result.questions(), result.ragStatus().name()));
     }
 
+    @PostMapping(value = "/sessions/{sessionId}/similar-questions", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiEnvelope<SimilarSetResponse> generateSimilarQuestions(
+            @PathVariable String sessionId,
+            @Valid @RequestBody SimilarQuestionRequest request,
+            @RequestHeader("Idempotency-Key") String ignoredIdempotencyKey,
+            HttpServletRequest servletRequest) {
+        PracticeSetView view = similarQuestionService.generate(sessionId, request.sourceAttemptId(), request.count());
+        return success(servletRequest, new SimilarSetResponse(view.practiceSet().practiceSetId(), view.questions()));
+    }
+
     private <T> ApiEnvelope<T> success(HttpServletRequest request, T data) {
         String requestId = (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
         return ApiEnvelope.success(requestId, data, Instant.now(clock));
@@ -111,5 +126,11 @@ public class CoachController {
 
     public record DiagnosticSetResponse(String practiceSetId, int questionCount,
                                         List<DiagnosticQuestion> questions, String ragStatus) {
+    }
+
+    public record SimilarQuestionRequest(@NotBlank String sourceAttemptId, @NotNull Integer count) {
+    }
+
+    public record SimilarSetResponse(String practiceSetId, List<StudentQuestion> questions) {
     }
 }

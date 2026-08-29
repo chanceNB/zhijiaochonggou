@@ -39,7 +39,9 @@ public class LearningStateRepository {
                        p.response_time_ms, p.attempt_index, p.attempt_time,
                        q.item_difficulty
                 from app.practice_attempts p
-                join app.question_items q on q.question_id = p.question_id
+                left join app.question_items q on q.question_id = p.question_id
+                left join app.practice_questions pq on pq.practice_set_id = p.practice_set_id
+                    and pq.question_id = p.question_id
                 where p.baseline_version = ?
                   and p.data_origin = 'BASELINE_SIMULATED'
                   and p.demo_run_id is null
@@ -56,6 +58,109 @@ public class LearningStateRepository {
                 rs.getInt("attempt_index"),
                 toInstant(rs.getObject("attempt_time")),
                 rs.getBigDecimal("item_difficulty").doubleValue()), baselineVersion);
+    }
+
+    public List<PracticeObservation> findPracticeObservationsForScope(String baselineVersion, String studentId,
+                                                                       String courseId, String demoRunId) {
+        return jdbcTemplate.query("""
+                select p.attempt_id, p.student_id, p.course_id, p.class_id,
+                       p.knowledge_point_id, p.question_id, p.correct,
+                       p.response_time_ms, p.attempt_index, p.attempt_time,
+                       coalesce(q.item_difficulty, pq.difficulty) as item_difficulty
+                from app.practice_attempts p
+                left join app.question_items q on q.question_id = p.question_id
+                left join app.practice_questions pq on pq.practice_set_id = p.practice_set_id
+                    and pq.question_id = p.question_id
+                where p.student_id = ? and p.course_id = ?
+                  and ((p.baseline_version = ? and p.data_origin = 'BASELINE_SIMULATED' and p.demo_run_id is null)
+                       or (p.data_origin = 'LIVE_DEMO' and p.demo_run_id = ?))
+                order by p.attempt_time, p.attempt_id
+                """, (rs, rowNum) -> new PracticeObservation(
+                rs.getString("attempt_id"), rs.getString("student_id"), rs.getString("course_id"),
+                rs.getString("class_id"), rs.getString("knowledge_point_id"), rs.getString("question_id"),
+                rs.getBoolean("correct"), rs.getInt("response_time_ms"), rs.getInt("attempt_index"),
+                toInstant(rs.getObject("attempt_time")), rs.getBigDecimal("item_difficulty").doubleValue()),
+                studentId, courseId, baselineVersion, demoRunId);
+    }
+
+    public List<StudentKnowledgeState> findStatesForScope(String studentId, String courseId) {
+        return findStates(studentId, courseId);
+    }
+
+    public void replaceScopedDerived(String baselineVersion, String sourceVersion, String studentId, String courseId,
+                                     String demoRunId, String demoCaseId, String correlationId,
+                                     StudentAbilityState ability, List<StudentKnowledgeState> states,
+                                     List<WeakKnowledgePointCandidate> candidates) {
+        List<StudentKnowledgeState> previousStates = findStatesForScope(studentId, courseId);
+        StudentAbilityState previousAbility = findAbility(studentId, courseId).orElse(null);
+        Instant capturedAt = Instant.now();
+        for (StudentKnowledgeState previous : previousStates) {
+            insertHistory(previous, previousAbility, baselineVersion, "BASELINE_SIMULATED", null, null, null, capturedAt);
+        }
+        jdbcTemplate.update("delete from app.weak_knowledge_point_candidates where student_id = ? and course_id = ?", studentId, courseId);
+        jdbcTemplate.update("delete from app.student_learning_abilities where student_id = ? and course_id = ?", studentId, courseId);
+        jdbcTemplate.update("delete from app.learning_snapshots where student_id = ? and course_id = ?", studentId, courseId);
+
+        jdbcTemplate.update("""
+                insert into app.student_learning_abilities
+                    (student_id, course_id, theta, theta_uncertainty, ability_model_version,
+                     baseline_version, data_origin, source_version, computed_at)
+                values (?, ?, ?, ?, ?, ?, 'LIVE_DEMO', ?, ?)
+                """, ability.studentId(), ability.courseId(), ability.theta(), ability.thetaUncertainty(), ability.abilityModelVersion(),
+                baselineVersion, sourceVersion, timestamp(ability.computedAt()));
+        for (StudentKnowledgeState state : states) {
+            jdbcTemplate.update("""
+                    insert into app.learning_snapshots
+                    (student_id, knowledge_point_id, course_id, class_id, mastery, confidence,
+                         forgetting_risk, misconception_code, snapshot_time, baseline_version,
+                         data_origin, source_version, evidence_count, last_evidence_at,
+                         mastery_model_version, ability_model_version, forgetting_model_version,
+                         confidence_model_version, computed_at)
+                    values (?, ?, ?, ?, ?, ?, ?, null, ?, ?, 'LIVE_DEMO', ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, state.studentId(), state.knowledgePointId(), state.courseId(), state.classId(), state.masteryProbability(),
+                    state.confidence(), state.forgettingRisk(), timestamp(state.computedAt()), baselineVersion, sourceVersion,
+                    state.evidenceCount(), timestamp(state.lastEvidenceAt()), state.masteryModelVersion(), state.abilityModelVersion(),
+                    state.forgettingModelVersion(), state.confidenceModelVersion(), timestamp(state.computedAt()));
+        }
+        for (WeakKnowledgePointCandidate candidate : candidates) {
+            jdbcTemplate.update("""
+                    insert into app.weak_knowledge_point_candidates
+                    (student_id, course_id, knowledge_point_id, weakness_score, confidence,
+                         evidence_count, rank_position, reason_codes, model_version,
+                         baseline_version, data_origin, source_version, computed_at)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'LIVE_DEMO', ?, ?)
+                    """, candidate.studentId(), candidate.courseId(), candidate.knowledgePointId(), candidate.weaknessScore(),
+                    candidate.confidence(), candidate.evidenceCount(), candidate.rankPosition(), String.join(",", candidate.reasonCodes()),
+                    candidate.modelVersion(), baselineVersion, sourceVersion, timestamp(findComputedAt(candidate, states)));
+        }
+        for (StudentKnowledgeState state : states) {
+            insertHistory(state, ability, baselineVersion, "LIVE_DEMO", demoRunId, demoCaseId, correlationId, capturedAt);
+        }
+    }
+
+    private void insertHistory(StudentKnowledgeState state, StudentAbilityState ability, String baselineVersion,
+                               String dataOrigin, String demoRunId, String demoCaseId, String correlationId,
+                               Instant capturedAt) {
+        jdbcTemplate.update("""
+                insert into app.learning_snapshot_history
+                    (history_id, student_id, course_id, class_id, knowledge_point_id, mastery, confidence,
+                     forgetting_risk, evidence_count, last_evidence_at, mastery_model_version, ability_model_version,
+                     forgetting_model_version, confidence_model_version, theta, theta_uncertainty, computed_at,
+                     data_origin, baseline_version, source_version, demo_run_id, demo_case_id, correlation_id, captured_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, "history-" + java.util.UUID.randomUUID().toString().replace("-", ""), state.studentId(), state.courseId(),
+                state.classId(), state.knowledgePointId(), state.masteryProbability(), state.confidence(), state.forgettingRisk(),
+                state.evidenceCount(), timestamp(state.lastEvidenceAt()), state.masteryModelVersion(), state.abilityModelVersion(),
+                state.forgettingModelVersion(), state.confidenceModelVersion(), ability == null ? null : ability.theta(),
+                ability == null ? null : ability.thetaUncertainty(), timestamp(state.computedAt()), dataOrigin, baselineVersion,
+                state.sourceVersion(), demoRunId, demoCaseId, correlationId, timestamp(capturedAt));
+    }
+
+    private Instant findComputedAt(WeakKnowledgePointCandidate candidate, List<StudentKnowledgeState> states) {
+        return states.stream().filter(state -> state.studentId().equals(candidate.studentId())
+                        && state.courseId().equals(candidate.courseId())
+                        && state.knowledgePointId().equals(candidate.knowledgePointId()))
+                .map(StudentKnowledgeState::computedAt).findFirst().orElseThrow();
     }
 
     public List<KnowledgePointRef> findKnowledgePoints(String courseId) {
@@ -209,16 +314,6 @@ public class LearningStateRepository {
                 rs.getString("ability_model_version"), rs.getString("forgetting_model_version"),
                 rs.getString("confidence_model_version"), toInstant(rs.getObject("computed_at")),
                 rs.getString("source_version"));
-    }
-
-    private Instant findComputedAt(WeakKnowledgePointCandidate candidate, List<StudentKnowledgeState> states) {
-        return states.stream()
-                .filter(state -> state.studentId().equals(candidate.studentId())
-                        && state.courseId().equals(candidate.courseId())
-                        && state.knowledgePointId().equals(candidate.knowledgePointId()))
-                .map(StudentKnowledgeState::computedAt)
-                .findFirst()
-                .orElseThrow();
     }
 
     private OffsetDateTime timestamp(Instant instant) {

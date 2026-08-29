@@ -151,6 +151,70 @@ public class LearningStateEngine {
         return new LearningStateComputationResult(baselineVersion, abilities.size(), states.size(), candidates.size());
     }
 
+    /** Recomputes only one student's course scope from baseline plus the active LIVE_DEMO run. */
+    @Transactional
+    public LearningStateComputationResult recomputeForStudentCourse(String studentId, String courseId, Instant asOf,
+                                                                     String demoRunId, String demoCaseId,
+                                                                     String correlationId) {
+        LearningStateRepository.BaselineContext baseline = repository.findBaseline("baseline-ds-v1")
+                .orElseThrow(() -> new IllegalArgumentException("Baseline is not available"));
+        List<PracticeObservation> observations = repository.findPracticeObservationsForScope(
+                baseline.baselineVersion(), studentId, courseId, demoRunId);
+        if (observations.isEmpty()) throw new IllegalArgumentException("No practice evidence is available");
+        Map<String, String> knowledgePointNames = repository.findKnowledgePoints(courseId).stream()
+                .collect(Collectors.toMap(LearningStateRepository.KnowledgePointRef::knowledgePointId,
+                        LearningStateRepository.KnowledgePointRef::name));
+        observations.sort(Comparator.comparing(PracticeObservation::attemptTime).thenComparing(PracticeObservation::attemptId));
+        RaschEstimate estimate = raschModel.estimate(observations.stream()
+                .map(o -> new RaschObservation(o.correct(), o.itemDifficulty())).toList());
+        StudentAbilityState ability = new StudentAbilityState(studentId, courseId, estimate.theta(), estimate.standardError(),
+                raschModelVersion, estimateTime(asOf), baseline.sourceVersion());
+        Map<String, List<PracticeObservation>> byKnowledge = observations.stream()
+                .collect(Collectors.groupingBy(PracticeObservation::knowledgePointId, HashMap::new,
+                        Collectors.toCollection(ArrayList::new)));
+        List<StudentKnowledgeState> states = new ArrayList<>();
+        for (Map.Entry<String, List<PracticeObservation>> entry : byKnowledge.entrySet()) {
+            List<PracticeObservation> group = entry.getValue();
+            sortObservations(group);
+            PracticeObservation last = group.get(group.size() - 1);
+            Duration gap = group.size() < 2 ? null : Duration.between(group.get(group.size() - 2).attemptTime(), last.attemptTime());
+            double mastery = bktModel.posterior(group.stream().map(PracticeObservation::correct).toList());
+            double forgettingRisk = forgettingRiskModel.calculate(new ForgettingEvidence(
+                    asOf, last.attemptTime(), gap, group.size(), mastery));
+            double confidence = confidenceModel.calculate(new ConfidenceEvidence(
+                    group.size(), estimate.standardError(), observationConsistency(group), last.attemptTime(), asOf));
+            states.add(new StudentKnowledgeState(studentId, courseId, last.classId(), entry.getKey(),
+                    knowledgePointNames.getOrDefault(entry.getKey(), entry.getKey()), mastery, confidence, forgettingRisk,
+                    group.size(), last.attemptTime(), bktParameters.modelVersion(), raschModelVersion,
+                    forgettingParameters.modelVersion(), confidenceParameters.modelVersion(), asOf, baseline.sourceVersion()));
+        }
+        states.sort(Comparator.comparing(StudentKnowledgeState::knowledgePointId));
+        List<WeakKnowledgePointCandidate> candidates = states.stream()
+                .map(state -> {
+                    List<PracticeObservation> group = byKnowledge.get(state.knowledgePointId());
+                    boolean repeated = hasRepeatedRecentErrors(group);
+                    return new WeakKnowledgePointCandidate(studentId, courseId, state.knowledgePointId(), state.knowledgePointName(),
+                            weaknessScore(state.masteryProbability(), state.forgettingRisk(), repeated), state.confidence(),
+                            state.evidenceCount(), 0, reasonCodes(group, state.masteryProbability(), state.forgettingRisk(), state.confidence()),
+                            WEAK_RANKING_MODEL_VERSION);
+                }).sorted(Comparator.comparingDouble(WeakKnowledgePointCandidate::weaknessScore).reversed()
+                        .thenComparing(WeakKnowledgePointCandidate::knowledgePointId)).toList();
+        List<WeakKnowledgePointCandidate> ranked = new ArrayList<>();
+        for (int index = 0; index < candidates.size(); index++) {
+            WeakKnowledgePointCandidate candidate = candidates.get(index);
+            ranked.add(new WeakKnowledgePointCandidate(candidate.studentId(), candidate.courseId(), candidate.knowledgePointId(),
+                    candidate.knowledgePointName(), candidate.weaknessScore(), candidate.confidence(), candidate.evidenceCount(),
+                    index + 1, candidate.reasonCodes(), candidate.modelVersion()));
+        }
+        repository.replaceScopedDerived(baseline.baselineVersion(), baseline.sourceVersion(), studentId, courseId,
+                demoRunId, demoCaseId, correlationId, ability, states, ranked);
+        return new LearningStateComputationResult(baseline.baselineVersion(), 1, states.size(), ranked.size());
+    }
+
+    private Instant estimateTime(Instant asOf) {
+        return asOf == null ? Instant.now() : asOf;
+    }
+
     @Transactional(readOnly = true)
     public LearningStateView read(String studentId, String courseId, String knowledgePointId) {
         List<WeakKnowledgePointCandidate> candidates = repository.findCandidates(studentId, courseId);

@@ -10,6 +10,10 @@ import com.zhijiao.foundation.student.coach.DiagnosticValidationException;
 import com.zhijiao.foundation.student.coach.InvalidLlmOutputException;
 import com.zhijiao.foundation.student.coach.LlmTimeoutException;
 import com.zhijiao.foundation.student.coach.LlmUnavailableException;
+import com.zhijiao.foundation.student.practice.DomainRuleViolationException;
+import com.zhijiao.foundation.student.practice.PracticeAttemptNotFoundException;
+import com.zhijiao.foundation.student.practice.PracticeSetNotFoundException;
+import com.zhijiao.foundation.student.practice.WrongBookItemNotFoundException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -60,6 +64,18 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiEnvelope<Void>> coachSessionNotFound(CoachSessionNotFoundException exception,
                                                             HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "SESSION_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler({PracticeSetNotFoundException.class, PracticeAttemptNotFoundException.class,
+            WrongBookItemNotFoundException.class})
+    ResponseEntity<ApiEnvelope<Void>> practiceNotFound(RuntimeException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(DomainRuleViolationException.class)
+    ResponseEntity<ApiEnvelope<Void>> domainRuleViolation(DomainRuleViolationException exception,
+                                                            HttpServletRequest request) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, "DOMAIN_RULE_VIOLATION", exception.getMessage(), null, request);
     }
 
     @ExceptionHandler(KnowledgeUnavailableException.class)
