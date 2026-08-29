@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Zhijiao Golden Demo V2 Foundation API
+  version: 0.1.0
+  description: Technical foundation contract. Business endpoints are added by later tasks.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Foundation health check
+      responses:
+        '200':
+          description: Service is available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeHealthStatus'
+components:
+  schemas:
+    ApiEnvelope:
+      type: object
+      required: [code, message, requestId, data, timestamp]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        data:
+          nullable: true
+        details:
+          $ref: '#/components/schemas/ErrorDetails'
+        timestamp:
+          type: string
+          format: date-time
+    ErrorDetails:
+      type: object
+      nullable: true
+      additionalProperties: true
+    ApiEnvelopeHealthStatus:
+      type: object
+      required: [code, message, requestId, data, timestamp]
+      properties:
+        code:
+          type: string
+          example: OK
+        message:
+          type: string
+          example: success
+        requestId:
+          type: string
+          example: req-01J
+        data:
+          $ref: '#/components/schemas/HealthStatus'
+        details:
+          $ref: '#/components/schemas/ErrorDetails'
+        timestamp:
+          type: string
+          format: date-time
+    HealthStatus:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          example: UP
+        service:
+          type: string
+          example: foundation-api

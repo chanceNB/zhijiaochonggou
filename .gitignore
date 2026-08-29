@@ -1,0 +1,19 @@
+# Java / Maven
+apps/api/target/
+*.class
+
+# Node / Vite
+node_modules/
+apps/web/dist/
+apps/web/.vite/
+*.tsbuildinfo
+
+# Local environment and generated databases
+.env
+*.log
+database/.data/
+
+# IDE
+.idea/
+.vscode/
+*.iml

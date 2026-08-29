@@ -1,0 +1,37 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: zhijiao-foundation-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/zhijiao}
+    username: ${DB_USERNAME:zhijiao}
+    password: ${DB_PASSWORD:zhijiao_dev}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+  flyway:
+    enabled: true
+    schemas: app,smartbi_exchange
+    default-schema: app
+    locations: classpath:db/migration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+security:
+  jwt:
+    enabled: ${JWT_ENABLED:false}
+    issuer: ${JWT_ISSUER:zhijiao-golden-demo-v2}
