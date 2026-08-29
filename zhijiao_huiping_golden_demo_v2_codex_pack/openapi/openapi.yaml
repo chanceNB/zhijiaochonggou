@@ -686,78 +686,6 @@ paths:
         required: true
         schema:
           type: string
-  /api/v1/analytics/smartbi/datasets:
-    get:
-      tags:
-      - Analytics/SmartBI
-      summary: 数据集清单
-      description: 返回 canonical dataset 元数据、字段版本和可用行数。
-      operationId: AnalyticsSmartBI
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiEnvelope'
-  /api/v1/analytics/smartbi/freshness:
-    get:
-      tags:
-      - Analytics/SmartBI
-      summary: 数据新鲜度
-      description: 查看业务事实投影到 exchange 的延迟。
-      operationId: AnalyticsSmartBI
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiEnvelope'
-  /api/v1/analytics/smartbi/exports:
-    post:
-      tags:
-      - Analytics/SmartBI
-      summary: 创建 CSV 导出
-      description: 生成 Baseline + active demo run 的 canonical CSV 包，作为 SmartBI 上传保底。
-      operationId: AnalyticsSmartBICSV
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiEnvelope'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-            example:
-              scope: ACTIVE_DEMO
-              demoRunId: demo-run-001
-  /api/v1/analytics/smartbi/exports/{exportId}:
-    get:
-      tags:
-      - Analytics/SmartBI
-      summary: 查询 CSV 导出
-      description: 查询导出状态与下载文件清单。
-      operationId: AnalyticsSmartBICSV
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiEnvelope'
-      parameters:
-      - name: exportId
-        in: path
-        required: true
-        schema:
-          type: string
   /api/v1/analytics/demo-traces/{demoCaseId}:
     get:
       tags:
@@ -783,6 +711,90 @@ paths:
         required: true
         schema:
           type: string
+  /api/v1/analytics/smartbi/datasets:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 数据集清单
+      description: 返回 smartbi_exchange published contract 的数据集元数据与行数。
+      operationId: getAnalyticsDatasets
+      responses:
+        '200':
+          description: Dataset catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/analytics/smartbi/freshness:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 数据新鲜度
+      description: 返回 source event 与 projection observation 时间。
+      operationId: getAnalyticsFreshness
+      responses:
+        '200':
+          description: Projection freshness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/analytics/smartbi/exports:
+    post:
+      tags:
+      - Analytics/SmartBI
+      summary: 创建 canonical CSV 导出
+      operationId: createAnalyticsExport
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [ACTIVE_DEMO, CURRENT_ALL]
+                demoRunId:
+                  type: string
+      responses:
+        '200':
+          description: CSV export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+  /api/v1/analytics/smartbi/exports/{exportId}:
+    get:
+      tags:
+      - Analytics/SmartBI
+      summary: 查询 canonical CSV 导出
+      operationId: getAnalyticsExport
+      parameters:
+      - name: exportId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: CSV export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '404':
+          description: Export not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
   /api/v1/integrations/smartbi/assets:
     get:
       tags:

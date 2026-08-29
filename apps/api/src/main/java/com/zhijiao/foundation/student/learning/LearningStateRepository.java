@@ -1,5 +1,7 @@
 package com.zhijiao.foundation.student.learning;
 
+import com.zhijiao.foundation.analytics.DomainEventOutboxRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -15,9 +17,16 @@ import java.util.Optional;
 @Repository
 public class LearningStateRepository {
     private final JdbcTemplate jdbcTemplate;
+    private final DomainEventOutboxRepository outbox;
+
+    @Autowired
+    public LearningStateRepository(JdbcTemplate jdbcTemplate, DomainEventOutboxRepository outbox) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.outbox = outbox;
+    }
 
     public LearningStateRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+        this(jdbcTemplate, null);
     }
 
     public Optional<BaselineContext> findBaseline(String baselineVersion) {
@@ -136,6 +145,10 @@ public class LearningStateRepository {
         for (StudentKnowledgeState state : states) {
             insertHistory(state, ability, baselineVersion, "LIVE_DEMO", demoRunId, demoCaseId, correlationId, capturedAt);
         }
+        if (outbox != null) {
+            outbox.append("LearningState", studentId + ":" + courseId, "LEARNING_STATE_RECOMPUTED",
+                    ability.computedAt(), sourceVersion, "LIVE_DEMO", demoRunId, demoCaseId, correlationId);
+        }
     }
 
     private void insertHistory(StudentKnowledgeState state, StudentAbilityState ability, String baselineVersion,
@@ -243,7 +256,11 @@ public class LearningStateRepository {
             ps.setString(10, baselineVersion);
             ps.setString(11, sourceVersion);
             ps.setObject(12, timestamp(findComputedAt(candidate, states)));
-        });
+                });
+        if (outbox != null) {
+            outbox.append("LearningState", baselineVersion, "LEARNING_STATE_RECOMPUTED", Instant.now(),
+                    sourceVersion, "BASELINE_SIMULATED", null, null, null);
+        }
     }
 
     public Optional<StudentKnowledgeState> findState(String studentId, String courseId, String knowledgePointId) {

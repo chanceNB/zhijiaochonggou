@@ -1,6 +1,7 @@
 package com.zhijiao.foundation.student.practice;
 
 import com.zhijiao.foundation.demo.BaselineSeedService;
+import com.zhijiao.foundation.analytics.AnalyticsProjectionService;
 import com.zhijiao.foundation.student.learning.LearningStateEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,13 +17,22 @@ public class PracticeService {
     private final LearningStateEngine learningStateEngine;
     private final Clock clock;
     private final PracticeContextResolver contextResolver;
+    private final AnalyticsProjectionService analyticsProjectionService;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PracticeService(PracticeRepository repository, LearningStateEngine learningStateEngine,
-                           Clock clock, PracticeContextResolver contextResolver) {
+                           Clock clock, PracticeContextResolver contextResolver,
+                           AnalyticsProjectionService analyticsProjectionService) {
         this.repository = repository;
         this.learningStateEngine = learningStateEngine;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.contextResolver = contextResolver == null ? new PracticeContextResolver(repository) : contextResolver;
+        this.analyticsProjectionService = analyticsProjectionService;
+    }
+
+    public PracticeService(PracticeRepository repository, LearningStateEngine learningStateEngine,
+                           Clock clock, PracticeContextResolver contextResolver) {
+        this(repository, learningStateEngine, clock, contextResolver, null);
     }
 
     @Transactional(readOnly = true)
@@ -55,6 +65,7 @@ public class PracticeService {
         repository.bindDemoContext(practiceSetId, demo);
         PracticeRepository.AttemptRow attempt = grade(set, question, answer.trim(), durationSeconds, idempotencyKey, demo);
         repository.insertAttempt(attempt);
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         // INSERT ... ON CONFLICT DO NOTHING makes the replay path safe on PostgreSQL,
         // where a caught unique-constraint error would otherwise abort the transaction.
         PracticeRepository.AttemptRow persisted = repository.findAttemptByIdempotency(practiceSetId, questionId, idempotencyKey)
@@ -94,10 +105,12 @@ public class PracticeService {
             stateStatus = "UPDATED";
         }
         PracticeRepository.DemoContext demo = activeDemo;
-        return repository.insertOutcome(new PracticeRepository.PracticeOutcomeData(
+        PracticeOutcome outcome = repository.insertOutcome(new PracticeRepository.PracticeOutcomeData(
                 "outcome-" + UUID.randomUUID().toString().replace("-", ""), practiceSetId, set.studentId(), set.courseId(),
                 accuracy, attempts.size(), attempts.isEmpty() ? "LIVE_DEMO" : attempts.get(0).dataOrigin(), demo.demoRunId(),
                 demo.demoCaseId(), demo.correlationId(), set.sourceVersion(), now, stateStatus));
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
+        return outcome;
     }
 
     private PracticeAttemptResult replayOrConflict(PracticeRepository.AttemptRow existing, String answer,

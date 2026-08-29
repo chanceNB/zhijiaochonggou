@@ -1,5 +1,6 @@
 package com.zhijiao.foundation.demo;
 
+import com.zhijiao.foundation.analytics.AnalyticsProjectionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,15 +14,24 @@ import java.util.UUID;
 public class DemoRunService {
     private final BaselineRepository repository;
     private final Clock clock;
+    private final AnalyticsProjectionService analyticsProjectionService;
 
-    public DemoRunService(BaselineRepository repository, Clock clock) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public DemoRunService(BaselineRepository repository, Clock clock, AnalyticsProjectionService analyticsProjectionService) {
         this.repository = repository;
         this.clock = clock;
+        this.analyticsProjectionService = analyticsProjectionService;
+    }
+
+    public DemoRunService(BaselineRepository repository, Clock clock) {
+        this(repository, clock, null);
     }
 
     @Transactional
     public DemoRun create(String demoCaseId, String baselineVersion) {
-        return createRun(validateContext(demoCaseId, baselineVersion), null);
+        DemoRun run = createRun(validateContext(demoCaseId, baselineVersion), null);
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
+        return run;
     }
 
     @Transactional
@@ -33,7 +43,9 @@ public class DemoRunService {
         }
         Instant now = Instant.now(clock);
         repository.markReset(current.demoRunId(), now);
-        return createRun(current, current.demoRunId());
+        DemoRun run = createRun(current, current.demoRunId());
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
+        return run;
     }
 
     @Transactional(readOnly = true)

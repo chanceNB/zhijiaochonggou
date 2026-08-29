@@ -1,5 +1,6 @@
 package com.zhijiao.foundation.student.learning;
 
+import com.zhijiao.foundation.analytics.AnalyticsProjectionService;
 import com.zhijiao.foundation.student.learning.algorithm.BktModel;
 import com.zhijiao.foundation.student.learning.algorithm.BktParameters;
 import com.zhijiao.foundation.student.learning.algorithm.ConfidenceEvidence;
@@ -40,9 +41,13 @@ public class LearningStateEngine {
     private final ForgettingRiskModel forgettingRiskModel;
     private final ConfidenceParameters confidenceParameters;
     private final ConfidenceModel confidenceModel;
+    private final AnalyticsProjectionService analyticsProjectionService;
 
-    public LearningStateEngine(LearningStateRepository repository, LearningModelProperties properties) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public LearningStateEngine(LearningStateRepository repository, LearningModelProperties properties,
+                               AnalyticsProjectionService analyticsProjectionService) {
         this.repository = repository;
+        this.analyticsProjectionService = analyticsProjectionService;
         LearningModelProperties.Bkt bkt = properties.getBkt();
         this.bktParameters = new BktParameters(bkt.getInitialMastery(), bkt.getTransition(), bkt.getSlip(),
                 bkt.getGuess(), bkt.getModelVersion());
@@ -64,6 +69,10 @@ public class LearningStateEngine {
                 confidence.getEvidenceWeight(), confidence.getUncertaintyWeight(), confidence.getConsistencyWeight(),
                 confidence.getRecencyWeight(), confidence.getModelVersion());
         this.confidenceModel = new ConfidenceModel(confidenceParameters);
+    }
+
+    public LearningStateEngine(LearningStateRepository repository, LearningModelProperties properties) {
+        this(repository, properties, null);
     }
 
     @Transactional
@@ -148,6 +157,7 @@ public class LearningStateEngine {
         }
 
         repository.replaceDerived(baselineVersion, baseline.sourceVersion(), abilities, states, candidates);
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return new LearningStateComputationResult(baselineVersion, abilities.size(), states.size(), candidates.size());
     }
 
@@ -208,6 +218,7 @@ public class LearningStateEngine {
         }
         repository.replaceScopedDerived(baseline.baselineVersion(), baseline.sourceVersion(), studentId, courseId,
                 demoRunId, demoCaseId, correlationId, ability, states, ranked);
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return new LearningStateComputationResult(baseline.baselineVersion(), 1, states.size(), ranked.size());
     }
 

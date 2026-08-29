@@ -3,6 +3,8 @@ package com.zhijiao.foundation.student.practice;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhijiao.foundation.analytics.DomainEventOutboxRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -19,10 +21,17 @@ import java.util.Optional;
 public class PracticeRepository {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final DomainEventOutboxRepository outbox;
 
-    public PracticeRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    @Autowired
+    public PracticeRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, DomainEventOutboxRepository outbox) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.outbox = outbox;
+    }
+
+    public PracticeRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+        this(jdbcTemplate, objectMapper, null);
     }
 
     public Optional<PracticeSet> findSet(String practiceSetId) {
@@ -84,7 +93,7 @@ public class PracticeRepository {
     }
 
     public AttemptRow insertAttempt(AttemptRow attempt) {
-        jdbcTemplate.update("""
+        int inserted = jdbcTemplate.update("""
                 insert into app.practice_attempts
                     (attempt_id, practice_set_id, attempt_time, student_id, course_id, class_id,
                      knowledge_point_id, question_id, question_source, difficulty, correct, duration_seconds,
@@ -98,6 +107,8 @@ public class PracticeRepository {
                 attempt.difficulty(), attempt.correct(), attempt.durationSeconds(), attempt.responseTimeMs(), attempt.attemptIndex(),
                 attempt.selectedAnswer(), attempt.dataOrigin(), attempt.sourceVersion(), attempt.baselineVersion(), attempt.demoRunId(),
                 attempt.demoCaseId(), attempt.correlationId(), timestamp(attempt.attemptTime()), attempt.coachSessionId(), attempt.idempotencyKey());
+        emit(inserted, "PracticeAttempt", attempt.attemptId(), "PRACTICE_ATTEMPT_RECORDED", attempt.attemptTime(),
+                attempt.sourceVersion(), attempt.dataOrigin(), attempt.demoRunId(), attempt.demoCaseId(), attempt.correlationId());
         return attempt;
     }
 
@@ -112,8 +123,9 @@ public class PracticeRepository {
     }
 
     public void markCompleted(String practiceSetId, Instant completedAt) {
-        jdbcTemplate.update("update app.practice_sets set status = 'COMPLETED', completed_at = ? where practice_set_id = ?",
+        int updated = jdbcTemplate.update("update app.practice_sets set status = 'COMPLETED', completed_at = ? where practice_set_id = ?",
                 timestamp(completedAt), practiceSetId);
+        emit(updated, "PracticeSet", practiceSetId, "PRACTICE_SET_COMPLETED", completedAt, "unknown", "LIVE_DEMO", null, null, null);
     }
 
     public PracticeOutcome insertOutcome(PracticeOutcomeData outcome) {
@@ -126,6 +138,8 @@ public class PracticeRepository {
                 """, outcome.outcomeId(), outcome.practiceSetId(), outcome.studentId(), outcome.courseId(), outcome.accuracy(),
                 outcome.attemptCount(), outcome.dataOrigin(), outcome.demoRunId(), outcome.demoCaseId(), outcome.correlationId(),
                 outcome.sourceVersion(), timestamp(outcome.createdAt()));
+        emit(inserted, "PracticeOutcome", outcome.outcomeId(), "PRACTICE_OUTCOME_RECORDED", outcome.createdAt(),
+                outcome.sourceVersion(), outcome.dataOrigin(), outcome.demoRunId(), outcome.demoCaseId(), outcome.correlationId());
         if (inserted == 1) {
             return new PracticeOutcome(outcome.outcomeId(), outcome.practiceSetId(), outcome.accuracy(), outcome.attemptCount(),
                     outcome.learningStateStatus());
@@ -212,7 +226,7 @@ public class PracticeRepository {
     }
 
     public WrongBookItem insertWrongBook(WrongBookItem item) {
-        jdbcTemplate.update("""
+        int inserted = jdbcTemplate.update("""
                 insert into app.wrong_book_items
                     (wrong_item_id, student_id, course_id, class_id, question_id, source_attempt_id,
                      knowledge_point_id, reason, status, review_count, added_at, repaired_at, data_origin,
@@ -223,6 +237,8 @@ public class PracticeRepository {
                 item.knowledgePointId(), item.reason(), item.status(), item.reviewCount(), timestamp(item.addedAt()),
                 item.repairedAt() == null ? null : timestamp(item.repairedAt()), item.dataOrigin(), item.demoRunId(), item.demoCaseId(),
                 item.correlationId(), item.sourceVersion());
+        emit(inserted, "WrongBookItem", item.wrongItemId(), "WRONG_BOOK_ADDED", item.addedAt(), item.sourceVersion(),
+                item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId());
         return item;
     }
 
@@ -300,8 +316,10 @@ public class PracticeRepository {
     public WrongBookItem updateWrongBookReview(WrongBookItem item, boolean correct, Instant reviewedAt) {
         String status = correct ? (item.reviewCount() + 1 >= 1 ? "LEARNING" : "TO_REVIEW") : "TO_REVIEW";
         Instant repairedAt = correct ? reviewedAt : item.repairedAt();
-        jdbcTemplate.update("update app.wrong_book_items set status = ?, review_count = ?, repaired_at = ? where wrong_item_id = ?",
+        int updated = jdbcTemplate.update("update app.wrong_book_items set status = ?, review_count = ?, repaired_at = ? where wrong_item_id = ?",
                 status, item.reviewCount() + 1, repairedAt == null ? null : timestamp(repairedAt), item.wrongItemId());
+        emit(updated, "WrongBookItem", item.wrongItemId(), "WRONG_BOOK_REVIEWED", reviewedAt, item.sourceVersion(),
+                item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId());
         return new WrongBookItem(item.wrongItemId(), item.studentId(), item.courseId(), item.classId(), item.questionId(),
                 item.sourceAttemptId(), item.knowledgePointId(), item.reason(), status, item.reviewCount() + 1,
                 item.addedAt(), repairedAt, item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion());
@@ -348,6 +366,14 @@ public class PracticeRepository {
     }
 
     private OffsetDateTime timestamp(Instant instant) { return instant.atOffset(ZoneOffset.UTC); }
+
+    private void emit(int changed, String aggregateType, String aggregateId, String eventType, Instant occurredAt,
+                      String sourceVersion, String dataOrigin, String demoRunId, String demoCaseId, String correlationId) {
+        if (changed > 0 && outbox != null) {
+            outbox.append(aggregateType, aggregateId, eventType, occurredAt, sourceVersion, dataOrigin,
+                    demoRunId, demoCaseId, correlationId);
+        }
+    }
     private Instant toInstant(Object value) {
         if (value instanceof OffsetDateTime dateTime) return dateTime.toInstant();
         if (value instanceof java.sql.Timestamp timestamp) return timestamp.toInstant();

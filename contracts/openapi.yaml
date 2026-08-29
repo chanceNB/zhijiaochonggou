@@ -479,6 +479,68 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/ResourceNotFound'
+  /analytics/smartbi/datasets:
+    get:
+      operationId: getAnalyticsDatasets
+      summary: List published SmartBI exchange datasets
+      responses:
+        '200':
+          description: Dataset catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeAnalyticsDatasetCatalog'
+  /analytics/smartbi/freshness:
+    get:
+      operationId: getAnalyticsFreshness
+      summary: Read exchange freshness
+      responses:
+        '200':
+          description: Projection freshness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeAnalyticsFreshness'
+  /analytics/smartbi/exports:
+    post:
+      operationId: createAnalyticsExport
+      summary: Create canonical SmartBI CSV export
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsExportRequest'
+      responses:
+        '200':
+          description: CSV export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeAnalyticsExport'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /analytics/smartbi/exports/{exportId}:
+    get:
+      operationId: getAnalyticsExport
+      summary: Read canonical SmartBI CSV export
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: CSV export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeAnalyticsExport'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
 components:
   schemas:
     ApiEnvelope:
@@ -1150,6 +1212,84 @@ components:
         - type: object
           properties:
             data: {$ref: '#/components/schemas/KnowledgeDocumentListResponse'}
+    AnalyticsDataset:
+      type: object
+      required: [datasetKey, objectName, kind, grain, rowCount, sourceVersion, name, rows]
+      properties:
+        datasetKey: {type: string}
+        objectName: {type: string}
+        kind: {type: string}
+        grain: {type: string}
+        rowCount: {type: integer, minimum: 0}
+        sourceVersion: {type: string}
+        name: {type: string}
+        rows: {type: integer, minimum: 0}
+    AnalyticsDatasetCatalog:
+      type: object
+      required: [contractVersion, datasets]
+      properties:
+        contractVersion: {type: string}
+        datasets:
+          type: array
+          items: {$ref: '#/components/schemas/AnalyticsDataset'}
+    AnalyticsFreshness:
+      type: object
+      required: [datasetKey, latestProjectionTime, observedAt, rowCount, sourceVersion]
+      properties:
+        datasetKey: {type: string}
+        latestSourceEventTime: {type: string, format: date-time, nullable: true}
+        latestProjectionTime: {type: string, format: date-time}
+        observedAt: {type: string, format: date-time}
+        rowCount: {type: integer, minimum: 0}
+        sourceVersion: {type: string}
+    AnalyticsFreshnessResponse:
+      type: object
+      required: [items, lagSeconds, status]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/AnalyticsFreshness'}
+        lastBusinessEventAt: {type: string, format: date-time, nullable: true}
+        lastProjectedAt: {type: string, format: date-time, nullable: true}
+        lagSeconds: {type: integer, minimum: 0}
+        status: {type: string, enum: [NO_DATA, FRESH, STALE]}
+    AnalyticsExportRequest:
+      type: object
+      properties:
+        scope: {type: string, enum: [ACTIVE_DEMO, CURRENT_ALL]}
+        demoRunId: {type: string}
+    AnalyticsExport:
+      type: object
+      required: [exportId, status, scope, createdAt, files]
+      properties:
+        exportId: {type: string}
+        status: {type: string, enum: [SUCCEEDED]}
+        scope: {type: string, enum: [ACTIVE_DEMO, ALL]}
+        demoRunId: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        completedAt: {type: string, format: date-time, nullable: true}
+        files:
+          type: array
+          items: {type: string}
+        manifestPath: {type: string}
+    ApiEnvelopeAnalyticsDatasetCatalog:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/AnalyticsDatasetCatalog'}
+    ApiEnvelopeAnalyticsFreshness:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/AnalyticsFreshnessResponse'}
+    ApiEnvelopeAnalyticsExport:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/AnalyticsExport'}
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

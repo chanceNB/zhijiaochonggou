@@ -1365,6 +1365,7 @@ Base URL：`http://localhost:8080/api/v1`（本地）
   "timestamp": "2026-08-29T08:00:00Z"
 }
 ```
+本地基础实现以同步方式生成 canonical CSV 包，成功状态为 `SUCCEEDED`；返回的 `files` 同时包含 10 个数据集 CSV 与 `manifest.json`。SmartBI 正式接入仍直接读取 PostgreSQL `smartbi_exchange`，不改为 REST 拉取。
 ##### 2.5.5.5 Demo Trace
 **功能描述**：按 demoCaseId 汇总全链 trace，供验收/调试，不作为普通学生UI。  
 **接口方式**：HTTP GET  

@@ -14,6 +14,7 @@ import com.zhijiao.foundation.student.practice.DomainRuleViolationException;
 import com.zhijiao.foundation.student.practice.PracticeAttemptNotFoundException;
 import com.zhijiao.foundation.student.practice.PracticeSetNotFoundException;
 import com.zhijiao.foundation.student.practice.WrongBookItemNotFoundException;
+import com.zhijiao.foundation.analytics.AnalyticsExportNotFoundException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -67,7 +68,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({PracticeSetNotFoundException.class, PracticeAttemptNotFoundException.class,
-            WrongBookItemNotFoundException.class})
+            WrongBookItemNotFoundException.class, AnalyticsExportNotFoundException.class})
     ResponseEntity<ApiEnvelope<Void>> practiceNotFound(RuntimeException exception, HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
     }

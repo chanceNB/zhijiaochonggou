@@ -1,5 +1,6 @@
 package com.zhijiao.foundation.student.practice;
 
+import com.zhijiao.foundation.analytics.AnalyticsProjectionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +12,17 @@ import java.util.UUID;
 public class WrongBookService {
     private final PracticeRepository repository;
     private final Clock clock;
+    private final AnalyticsProjectionService analyticsProjectionService;
 
-    public WrongBookService(PracticeRepository repository, Clock clock) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public WrongBookService(PracticeRepository repository, Clock clock, AnalyticsProjectionService analyticsProjectionService) {
         this.repository = repository;
         this.clock = clock;
+        this.analyticsProjectionService = analyticsProjectionService;
+    }
+
+    public WrongBookService(PracticeRepository repository, Clock clock) {
+        this(repository, clock, null);
     }
 
     @Transactional
@@ -35,6 +43,7 @@ public class WrongBookService {
                 reason, "TO_REVIEW", 0, Instant.now(clock), null, attempt.dataOrigin(), demo.demoRunId(), demo.demoCaseId(),
                 demo.correlationId(), attempt.sourceVersion());
         repository.insertWrongBook(item);
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return repository.findWrongBookBySourceAttempt(studentId, attemptId).orElse(item);
     }
 
@@ -64,6 +73,7 @@ public class WrongBookService {
                 .orElseThrow(() -> new DomainRuleViolationException("Question is unavailable for review"));
         boolean correct = question.correctAnswer().equals(answer.trim());
         WrongBookItem updated = repository.updateWrongBookReview(item, correct, Instant.now(clock));
+        if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return new WrongBookReviewResult(correct, updated.status(), updated.reviewCount());
     }
 
