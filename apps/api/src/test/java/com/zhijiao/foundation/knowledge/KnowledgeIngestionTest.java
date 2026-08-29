@@ -10,7 +10,9 @@ class KnowledgeIngestionTest {
 
     @Test
     void deterministicEmbeddingAndLexicalSearchProduceStableCitationInput() {
-        DeterministicEmbedding embedding = new DeterministicEmbedding(16);
+        EmbeddingProperties properties = new EmbeddingProperties();
+        properties.setDimension(16);
+        EmbeddingPort embedding = new DeterministicEmbeddingAdapter(properties);
         KnowledgeSearchResult result = new KnowledgeSearchResult(
                 "chunk-1", "doc-1", "图遍历讲义", "BFS 使用队列维护待访问顶点。", 0.91,
                 List.of("knowledgePointId=kp-graph-bfs-dfs"));

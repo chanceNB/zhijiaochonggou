@@ -13,3 +13,10 @@ security:
   jwt:
     enabled: false
     issuer: test
+
+app:
+  coach:
+    rag:
+      embedding:
+        provider: deterministic
+        dimension: 32

@@ -4,6 +4,7 @@ import com.zhijiao.foundation.api.ApiEnvelope;
 import com.zhijiao.foundation.demo.DemoRunNotFoundException;
 import com.zhijiao.foundation.student.learning.LearningStateNotFoundException;
 import com.zhijiao.foundation.knowledge.KnowledgeUnavailableException;
+import com.zhijiao.foundation.knowledge.EmbeddingUnavailableException;
 import com.zhijiao.foundation.student.coach.CoachSessionNotFoundException;
 import com.zhijiao.foundation.student.coach.DiagnosticValidationException;
 import com.zhijiao.foundation.student.coach.InvalidLlmOutputException;
@@ -63,6 +64,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(KnowledgeUnavailableException.class)
     ResponseEntity<ApiEnvelope<Void>> knowledgeUnavailable(KnowledgeUnavailableException exception,
+                                                             HttpServletRequest request) {
+        return response(HttpStatus.SERVICE_UNAVAILABLE, "RAG_UNAVAILABLE", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(EmbeddingUnavailableException.class)
+    ResponseEntity<ApiEnvelope<Void>> embeddingUnavailable(EmbeddingUnavailableException exception,
                                                              HttpServletRequest request) {
         return response(HttpStatus.SERVICE_UNAVAILABLE, "RAG_UNAVAILABLE", exception.getMessage(), null, request);
     }

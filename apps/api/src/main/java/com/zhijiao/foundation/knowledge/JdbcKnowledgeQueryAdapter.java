@@ -8,10 +8,11 @@ import java.util.List;
 @Component
 public class JdbcKnowledgeQueryAdapter implements KnowledgeQueryPort {
     private final KnowledgeRepository repository;
-    private final DeterministicEmbedding embedding = new DeterministicEmbedding(32);
+    private final EmbeddingPort embedding;
 
-    public JdbcKnowledgeQueryAdapter(KnowledgeRepository repository) {
+    public JdbcKnowledgeQueryAdapter(KnowledgeRepository repository, EmbeddingPort embedding) {
         this.repository = repository;
+        this.embedding = embedding;
     }
 
     @Override
@@ -20,7 +21,7 @@ public class JdbcKnowledgeQueryAdapter implements KnowledgeQueryPort {
             return List.of();
         }
         try {
-            List<Double> queryVector = embedding.embed(query);
+            List<Double> queryVector = validateVector(embedding.embed(query), embedding.dimension());
             return repository.findChunks(courseId, knowledgePointId).stream()
                     .map(chunk -> new KnowledgeSearchResult(chunk.chunkId(), chunk.documentId(), chunk.title(),
                             excerpt(chunk.content()), score(query, queryVector, chunk), chunk.metadata()))
@@ -36,7 +37,8 @@ public class JdbcKnowledgeQueryAdapter implements KnowledgeQueryPort {
     }
 
     private double score(String query, List<Double> queryVector, KnowledgeRepository.StoredChunk chunk) {
-        double cosine = cosine(queryVector, chunk.embedding());
+        double cosine = queryVector.size() == chunk.embedding().size()
+                ? cosine(queryVector, chunk.embedding()) : 0.0;
         String lowerQuery = query.toLowerCase();
         String lowerContent = chunk.content().toLowerCase();
         double lexical = lowerContent.contains(lowerQuery) ? 1.0 : 0.0;
@@ -44,7 +46,7 @@ public class JdbcKnowledgeQueryAdapter implements KnowledgeQueryPort {
     }
 
     private double cosine(List<Double> left, List<Double> right) {
-        int size = Math.min(left.size(), right.size());
+        int size = left.size();
         double dot = 0.0, leftNorm = 0.0, rightNorm = 0.0;
         for (int index = 0; index < size; index++) {
             dot += left.get(index) * right.get(index);
@@ -52,6 +54,20 @@ public class JdbcKnowledgeQueryAdapter implements KnowledgeQueryPort {
             rightNorm += right.get(index) * right.get(index);
         }
         return leftNorm == 0.0 || rightNorm == 0.0 ? 0.0 : dot / Math.sqrt(leftNorm * rightNorm);
+    }
+
+    private List<Double> validateVector(List<Double> vector, int configuredDimension) {
+        if (vector == null || vector.isEmpty()) {
+            throw new EmbeddingUnavailableException("Embedding provider returned an empty vector");
+        }
+        if (configuredDimension > 0 && vector.size() != configuredDimension) {
+            throw new EmbeddingDimensionMismatchException(
+                    "Embedding dimension " + vector.size() + " does not match configured dimension " + configuredDimension);
+        }
+        if (vector.stream().anyMatch(value -> value == null || !Double.isFinite(value))) {
+            throw new EmbeddingUnavailableException("Embedding provider returned a non-finite vector");
+        }
+        return List.copyOf(vector);
     }
 
     private String excerpt(String content) {

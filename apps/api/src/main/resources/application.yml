@@ -48,6 +48,13 @@ app:
       prompt-version: ${LLM_PROMPT_VERSION:coach-prompt-v1}
     rag:
       top-k: ${RAG_TOP_K:4}
+      embedding:
+        provider: ${EMBEDDING_PROVIDER:openai-compatible}
+        base-url: ${EMBEDDING_BASE_URL:https://api.openai.com/v1}
+        api-key: ${EMBEDDING_API_KEY:}
+        model: ${EMBEDDING_MODEL:text-embedding-3-small}
+        dimension: ${EMBEDDING_DIMENSION:0}
+        timeout-seconds: ${EMBEDDING_TIMEOUT_SECONDS:30}
   learning:
     bkt:
       initial-mastery: ${BKT_INITIAL_MASTERY:0.20}

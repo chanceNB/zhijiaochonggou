@@ -12,12 +12,12 @@ import java.util.UUID;
 @Service
 public class KnowledgeIngestionService {
     private final KnowledgeRepository repository;
-    private final DeterministicEmbedding embedding;
+    private final EmbeddingPort embedding;
     private final Clock clock;
 
-    public KnowledgeIngestionService(KnowledgeRepository repository, Clock clock) {
+    public KnowledgeIngestionService(KnowledgeRepository repository, EmbeddingPort embedding, Clock clock) {
         this.repository = repository;
-        this.embedding = new DeterministicEmbedding(32);
+        this.embedding = embedding;
         this.clock = clock;
     }
 
