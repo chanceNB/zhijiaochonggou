@@ -67,6 +67,13 @@
 - Page：调用 composable/store 并拼装组件。
 - `MetricCard` 只能展示后端/SmartBI 给定指标，禁止在组件中推导业务核心指标。
 
+## 4.1 F00 V2 additions
+
+- Base surface additions: `TraceDrawer`, `CoachSessionRail`, `CoachConversation`, `CoachComposer`, `PracticeHubCard`, `PracticeResultSummary`, `WrongQuestionList`, and `ResourceContractState`.
+- Teacher additions: `CurrentStudentContext`, `TeacherProcessStepper`, `AssignmentStatusCard`, `LearningStateDeltaTable`, `SmartBiEmbedPanel`, `SmartBiAiChatPanel`, `RecommendationCaptureDrawer`, `DataFreshnessBadge`, and `CourseResourceContractState`.
+- `SmartBiEmbedPanel` only renders an API-provided `resourceUrl` according to `launchMode = IFRAME | NEW_TAB | UNVERIFIED`; it never generates local charts or credentials.
+- Business components receive ViewModels only. API calls remain in pages/stores, and resource upload components must surface the knowledge permission gap instead of calling admin endpoints.
+
 ## 5. 必须统一的业务文案
 
 - SmartBI 未验证：`分析平台能力待验证`

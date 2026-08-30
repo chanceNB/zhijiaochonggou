@@ -111,4 +111,12 @@ src/types/contracts/*
 
 Student：今日、AI学习教练、定向练习、错题本、我的成长、学习资料；消息进入右上角通知中心。
 
-Teacher：工作台、学生画像、诊断、干预实验、教学治理、课程资源、数据洞察。
+Teacher：工作台、数据洞察、干预决策、干预结果、课程资源；学生画像与诊断案例作为二级路由。
+
+## 10. V3 F00 alignment
+
+- `/student/practice` is the Practice Hub entry. It composes current Today, Coach, and Wrong Book state and never fabricates practice history.
+- Teacher一级导航固定为：工作台、数据洞察、干预决策、干预结果、课程资源。学生画像与诊断案例保留为二级路由。
+- Diagnostic `questionCount` is fixed at 2, while correct count, incorrect count, and accuracy are runtime-driven from real attempts and completion outcomes.
+- SmartBI uses verified IFRAME-first assets. `NEW_TAB` and `UNVERIFIED` are explicit fallbacks, and AIChat recommendations remain `MANUAL_CAPTURE`; Vue never redraws SmartBI analytics or reads cross-origin iframe DOM.
+- Student/Teacher resource upload is blocked by the current knowledge upload permission gap. Neither role may call `/admin/knowledge/*` until a role-scoped contract exists.
