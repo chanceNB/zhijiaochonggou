@@ -95,6 +95,81 @@ class AnalyticsExchangeIntegrationTest {
     }
 
     @Test
+    void projectsBooleanFactsToBiFriendlyNumericFlags() {
+        DemoRun run = demoRunService.create(BaselineSeedService.DEMO_CASE_ID, BaselineSeedService.BASELINE_VERSION);
+        jdbcTemplate.update("""
+                insert into app.practice_attempts
+                    (attempt_id, practice_set_id, attempt_time, student_id, course_id, class_id,
+                     knowledge_point_id, question_id, question_source, difficulty, correct, duration_seconds,
+                     response_time_ms, attempt_index, selected_answer, data_origin, source_version,
+                     baseline_version, demo_run_id, demo_case_id, correlation_id, ingested_at)
+                values (?, null, ?, ?, ?, ?, ?, ?, 'LIVE_DIAGNOSTIC', 'HARD', false, 30, 30000, 99, 'B',
+                        'LIVE_DEMO', 'live-flags-v1', ?, ?, ?, ?, ?)
+                """, "live-flag-attempt", OffsetDateTime.parse("2026-08-29T15:00:00Z"),
+                BaselineSeedService.XIAOMING_ID, BaselineSeedService.COURSE_ID, BaselineSeedService.CLASS_ONE_ID,
+                BaselineSeedService.BFS_DFS_ID, "baseline-q-kp-graph-bfs-dfs-01", BaselineSeedService.BASELINE_VERSION,
+                run.demoRunId(), BaselineSeedService.DEMO_CASE_ID, run.correlationId(),
+                OffsetDateTime.parse("2026-08-29T15:00:00Z"));
+        jdbcTemplate.update("""
+                insert into app.wrong_book_items
+                    (wrong_item_id, student_id, course_id, class_id, question_id, source_attempt_id,
+                     knowledge_point_id, reason, status, review_count, added_at, repaired_at, data_origin,
+                     demo_run_id, demo_case_id, correlation_id, source_version)
+                values (?, ?, ?, ?, ?, ?, ?, ?, 'TO_REVIEW', 0, ?, null, 'LIVE_DEMO', ?, ?, ?, ?)
+                """, "live-flag-wrong-book", BaselineSeedService.XIAOMING_ID, BaselineSeedService.COURSE_ID,
+                BaselineSeedService.CLASS_ONE_ID, "baseline-q-kp-graph-bfs-dfs-01", "live-flag-attempt",
+                BaselineSeedService.BFS_DFS_ID, "flag compatibility", OffsetDateTime.parse("2026-08-29T15:00:00Z"),
+                run.demoRunId(), BaselineSeedService.DEMO_CASE_ID, run.correlationId(), "live-flags-v1");
+
+        learningStateEngine.recomputeForStudentCourse(BaselineSeedService.XIAOMING_ID, BaselineSeedService.COURSE_ID,
+                OffsetDateTime.parse("2026-08-29T16:00:00Z").toInstant(), run.demoRunId(),
+                BaselineSeedService.DEMO_CASE_ID, run.correlationId());
+        projectionService.refresh();
+
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_learning_state
+                where (is_current and is_current_flag <> 1) or (not is_current and is_current_flag <> 0)
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_learning_state where is_current = true and is_current_flag = 1
+                """, Integer.class)).isGreaterThan(0);
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_learning_state where is_current = false and is_current_flag = 0
+                """, Integer.class)).isGreaterThan(0);
+
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_practice_attempt
+                where (correct and correct_flag <> 1) or (not correct and correct_flag <> 0)
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_practice_attempt
+                where (is_active_demo and is_active_demo_flag <> 1) or (not is_active_demo and is_active_demo_flag <> 0)
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("select correct_flag from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-flag-attempt'", Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-flag-attempt'", Integer.class))
+                .isEqualTo(1);
+
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_wrong_book where wrong_book_item_id = 'live-flag-wrong-book'", Integer.class))
+                .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from smartbi_exchange.sb_fact_wrong_book
+                where (is_active_demo and is_active_demo_flag <> 1) or (not is_active_demo and is_active_demo_flag <> 0)
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("select active_flag from smartbi_exchange.sb_demo_run_state where demo_run_id = ?", Integer.class, run.demoRunId()))
+                .isEqualTo(1);
+
+        demoRunService.reset(run.demoRunId());
+        projectionService.refresh();
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-flag-attempt'", Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_wrong_book where wrong_book_item_id = 'live-flag-wrong-book'", Integer.class))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject("select active_flag from smartbi_exchange.sb_demo_run_state where demo_run_id = ?", Integer.class, run.demoRunId()))
+                .isZero();
+    }
+
+    @Test
     void liveFactsCoexistAndResetMarksOldRunInactive() {
         DemoRun first = demoRunService.create(BaselineSeedService.DEMO_CASE_ID, BaselineSeedService.BASELINE_VERSION);
         jdbcTemplate.update("""
@@ -117,11 +192,15 @@ class AnalyticsExchangeIntegrationTest {
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("select is_active_demo from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-attempt-t05'", Boolean.class))
                 .isTrue();
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-attempt-t05'", Integer.class))
+                .isEqualTo(1);
 
         demoRunService.reset(first.demoRunId());
         projectionService.refresh();
         assertThat(jdbcTemplate.queryForObject("select is_active_demo from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-attempt-t05'", Boolean.class))
                 .isFalse();
+        assertThat(jdbcTemplate.queryForObject("select is_active_demo_flag from smartbi_exchange.sb_fact_practice_attempt where attempt_id = 'live-attempt-t05'", Integer.class))
+                .isZero();
         assertThat(jdbcTemplate.queryForObject("select count(*) from smartbi_exchange.sb_fact_practice_attempt where data_origin = 'BASELINE_SIMULATED'", Integer.class))
                 .isGreaterThan(0);
     }

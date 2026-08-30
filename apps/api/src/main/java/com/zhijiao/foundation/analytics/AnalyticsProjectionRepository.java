@@ -113,9 +113,9 @@ public class AnalyticsProjectionRepository {
                      mastery_probability, confidence, forgetting_risk, weakness_score, evidence_count,
                      last_evidence_at, mastery_model_version, ability_model_version,
                      forgetting_model_version, confidence_model_version, snapshot_time, computed_at,
-                     snapshot_status, is_current, data_origin, demo_run_id, demo_case_id, correlation_id,
+                     snapshot_status, is_current, is_current_flag, data_origin, demo_run_id, demo_case_id, correlation_id,
                      source_version, ingested_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, rows, 100, (ps, row) -> {
             ps.setString(1, row.snapshotId());
             ps.setString(2, row.studentId());
@@ -136,12 +136,13 @@ public class AnalyticsProjectionRepository {
             ps.setObject(17, timestamp(row.computedAt()));
             ps.setString(18, row.isCurrent() ? "CURRENT" : "HISTORICAL");
             ps.setBoolean(19, row.isCurrent());
-            ps.setString(20, row.dataOrigin());
-            ps.setString(21, row.demoRunId());
-            ps.setString(22, row.demoCaseId());
-            ps.setString(23, row.correlationId());
-            ps.setString(24, row.sourceVersion());
-            ps.setObject(25, timestamp(observedAt));
+            ps.setInt(20, row.isCurrent() ? 1 : 0);
+            ps.setString(21, row.dataOrigin());
+            ps.setString(22, row.demoRunId());
+            ps.setString(23, row.demoCaseId());
+            ps.setString(24, row.correlationId());
+            ps.setString(25, row.sourceVersion());
+            ps.setObject(26, timestamp(observedAt));
         });
         return rows.size();
     }
@@ -161,10 +162,10 @@ public class AnalyticsProjectionRepository {
         jdbcTemplate.batchUpdate("""
                 insert into smartbi_exchange.sb_fact_practice_attempt
                     (attempt_id, practice_set_id, student_id, course_id, class_id, question_id,
-                     knowledge_point_id, question_source, difficulty, correct, response_time_ms,
+                     knowledge_point_id, question_source, difficulty, correct, correct_flag, response_time_ms,
                      duration_seconds, attempt_time, attempt_index, data_origin, demo_run_id,
-                     demo_case_id, correlation_id, source_version, ingested_at, is_active_demo)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     demo_case_id, correlation_id, source_version, ingested_at, is_active_demo, is_active_demo_flag)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, rows, 100, (ps, row) -> {
             ps.setString(1, row.attemptId());
             ps.setString(2, row.practiceSetId());
@@ -176,17 +177,19 @@ public class AnalyticsProjectionRepository {
             ps.setString(8, row.questionSource());
             ps.setString(9, row.difficulty());
             ps.setBoolean(10, row.correct());
-            ps.setInt(11, row.responseTimeMs());
-            ps.setInt(12, row.durationSeconds());
-            ps.setObject(13, timestamp(row.attemptTime()));
-            ps.setInt(14, row.attemptIndex());
-            ps.setString(15, row.dataOrigin());
-            ps.setString(16, row.demoRunId());
-            ps.setString(17, row.demoCaseId());
-            ps.setString(18, row.correlationId());
-            ps.setString(19, row.sourceVersion());
-            ps.setObject(20, timestamp(row.ingestedAt()));
-            ps.setBoolean(21, row.activeDemo());
+            ps.setInt(11, row.correct() ? 1 : 0);
+            ps.setInt(12, row.responseTimeMs());
+            ps.setInt(13, row.durationSeconds());
+            ps.setObject(14, timestamp(row.attemptTime()));
+            ps.setInt(15, row.attemptIndex());
+            ps.setString(16, row.dataOrigin());
+            ps.setString(17, row.demoRunId());
+            ps.setString(18, row.demoCaseId());
+            ps.setString(19, row.correlationId());
+            ps.setString(20, row.sourceVersion());
+            ps.setObject(21, timestamp(row.ingestedAt()));
+            ps.setBoolean(22, row.activeDemo());
+            ps.setInt(23, row.activeDemo() ? 1 : 0);
         });
         return rows.size();
     }
@@ -206,8 +209,9 @@ public class AnalyticsProjectionRepository {
                 insert into smartbi_exchange.sb_fact_wrong_book
                     (wrong_book_item_id, student_id, course_id, class_id, question_id, knowledge_point_id,
                      source_attempt_id, reason, status, review_count, added_at, repaired_at, data_origin,
-                     demo_run_id, demo_case_id, correlation_id, source_version, ingested_at, is_active_demo)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     demo_run_id, demo_case_id, correlation_id, source_version, ingested_at, is_active_demo,
+                     is_active_demo_flag)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, rows, 100, (ps, row) -> {
             ps.setString(1, row.wrongBookItemId());
             ps.setString(2, row.studentId());
@@ -228,6 +232,7 @@ public class AnalyticsProjectionRepository {
             ps.setString(17, row.sourceVersion());
             ps.setObject(18, timestamp(observedAt));
             ps.setBoolean(19, row.activeDemo());
+            ps.setInt(20, row.activeDemo() ? 1 : 0);
         });
         return rows.size();
     }
@@ -235,9 +240,10 @@ public class AnalyticsProjectionRepository {
     private void projectDemoRuns() {
         jdbcTemplate.update("""
                 insert into smartbi_exchange.sb_demo_run_state
-                    (demo_run_id, demo_case_id, status, started_at, completed_at, reset_at, active, correlation_id, source_version)
+                    (demo_run_id, demo_case_id, status, started_at, completed_at, reset_at, active, active_flag,
+                     correlation_id, source_version)
                 select demo_run_id, demo_case_id, status, created_at, null, reset_at,
-                       status = 'ACTIVE', correlation_id, baseline_version
+                       status = 'ACTIVE', case when status = 'ACTIVE' then 1 else 0 end, correlation_id, baseline_version
                 from app.demo_runs
                 """);
     }
