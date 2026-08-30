@@ -3,6 +3,7 @@ package com.zhijiao.foundation.knowledge;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ public class OpenAiCompatibleEmbeddingAdapter implements EmbeddingPort {
     private final ObjectMapper objectMapper;
     private final EmbeddingProperties properties;
 
+    @Autowired
     public OpenAiCompatibleEmbeddingAdapter(ObjectMapper objectMapper, EmbeddingProperties properties) {
         this(buildRestClient(properties), objectMapper, properties);
     }
