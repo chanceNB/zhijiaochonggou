@@ -17,7 +17,7 @@ public class CoachProperties {
         private String model = "gpt-4o-mini";
         private int timeoutSeconds = 30;
         private int maxDiagnosticRetries = 1;
-        private String promptVersion = "coach-prompt-v1";
+        private String promptVersion = "coach-prompt-v2";
 
         public String getProvider() { return provider; }
         public void setProvider(String provider) { this.provider = provider; }

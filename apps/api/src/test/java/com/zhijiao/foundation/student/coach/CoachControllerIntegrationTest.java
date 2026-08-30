@@ -159,11 +159,46 @@ class CoachControllerIntegrationTest {
                 "select count(*) from app.coach_messages where session_id = ? and message_type = 'USER'", Integer.class, sessionId)).isEqualTo(1);
     }
 
+    @Test
+    void invalidDiagnosticOutputReturns502AndPersistsNothing() throws Exception {
+        when(llmPort.complete(any()))
+                .thenReturn(new LlmResponse(invalidDiagnosticJson(), "deepseek", "deepseek-v4-flash", "coach-prompt-v2"))
+                .thenReturn(new LlmResponse(invalidDiagnosticJson(), "deepseek", "deepseek-v4-flash", "coach-prompt-v2"));
+        String response = mockMvc.perform(post("/api/v1/student/coach/sessions")
+                        .header("Idempotency-Key", "coach-create-invalid-diagnostic")
+                        .contentType("application/json")
+                        .content("{\"studentId\":\"stu-xiaoming\",\"courseId\":\"course-data-structures\",\"knowledgePointId\":\"kp-graph-bfs-dfs\",\"mode\":\"DIAGNOSTIC\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String sessionId = JsonMapper.builder().findAndAddModules().build().readTree(response).path("data").path("sessionId").asText();
+
+        mockMvc.perform(post("/api/v1/student/coach/sessions/{sessionId}/diagnostic-sets", sessionId)
+                        .header("Idempotency-Key", "coach-diagnostic-invalid")
+                        .contentType("application/json")
+                        .content("{\"knowledgePointId\":\"kp-graph-bfs-dfs\",\"questionCount\":2}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code", equalTo("LLM_OUTPUT_INVALID")))
+                .andExpect(jsonPath("$.message", org.hamcrest.Matchers.containsString("remained invalid")));
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from app.practice_sets where coach_session_id = ?",
+                Integer.class, sessionId)).isZero();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from app.coach_diagnostic_questions where session_id = ?",
+                Integer.class, sessionId)).isZero();
+    }
+
     private String diagnosticJson() {
         return """
                 {"questions":[
                   {"questionId":"diag-q-1","knowledgePointId":"kp-graph-bfs-dfs","questionType":"SINGLE_CHOICE","stem":"BFS uses which structure?","options":[{"optionId":"A","text":"队列"},{"optionId":"B","text":"栈"}],"correctAnswer":"A","explanation":"队列维护层序访问。","diagnosticTarget":{"code":"BFS_QUEUE_ORDER","description":"访问顺序"},"difficulty":0.5},
                   {"questionId":"diag-q-2","knowledgePointId":"kp-graph-bfs-dfs","questionType":"SINGLE_CHOICE","stem":"DFS traversal may require what?","options":[{"optionId":"A","text":"回溯"},{"optionId":"B","text":"排序"}],"correctAnswer":"A","explanation":"DFS explores and backtracks。","diagnosticTarget":{"code":"DFS_BACKTRACKING","description":"回溯"},"difficulty":0.6}
+                ]}
+                """;
+    }
+
+    private String invalidDiagnosticJson() {
+        return """
+                {"questions":[
+                  {"questionId":null,"knowledgePointId":null,"questionType":null,"stem":null,"options":[],"correctAnswer":null,"explanation":null,"diagnosticTarget":{"code":null,"description":null},"difficulty":null},
+                  {"questionId":null,"knowledgePointId":null,"questionType":null,"stem":null,"options":[],"correctAnswer":null,"explanation":null,"diagnosticTarget":{"code":null,"description":null},"difficulty":null}
                 ]}
                 """;
     }

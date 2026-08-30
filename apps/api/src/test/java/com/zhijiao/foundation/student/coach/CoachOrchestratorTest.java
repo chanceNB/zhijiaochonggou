@@ -15,10 +15,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CoachOrchestratorTest {
@@ -55,6 +58,75 @@ class CoachOrchestratorTest {
     }
 
     @Test
+    void invalidDiagnosticOutputAfterAllRetriesMustFailClosedAndNeverPersist() {
+        LearningStateEngine learningStateEngine = mock(LearningStateEngine.class);
+        KnowledgeQueryPort knowledgeQueryPort = mock(KnowledgeQueryPort.class);
+        CoachRepository repository = mock(CoachRepository.class);
+        LlmPort llmPort = mock(LlmPort.class);
+        when(learningStateEngine.read("stu-xiaoming", "course-data-structures", "kp-graph-bfs-dfs"))
+                .thenReturn(view());
+        when(repository.findSession("session-invalid")).thenReturn(Optional.of(new CoachSession(
+                "session-invalid", "stu-xiaoming", "course-data-structures", "kp-graph-bfs-dfs", "DIAGNOSTIC",
+                "ACTIVE", RagStatus.EMPTY, 0.17, 0.74, 0.11, 0.71, "LOW_MASTERY",
+                "BKT_V1_FIXED_PARAMS/RASCH_MAP_V1", "baseline-ds-v1", Instant.now(), Instant.now())));
+        when(knowledgeQueryPort.search(any(), any(), any(), anyInt())).thenReturn(List.of(
+                new KnowledgeSearchResult("chunk-1", "doc-1", "讲义", "BFS 使用队列。", 0.9, List.of())));
+        when(llmPort.complete(any()))
+                .thenReturn(new LlmResponse(invalidJson(), "test", "test", "coach-prompt-v2"))
+                .thenReturn(new LlmResponse(invalidJson(), "test", "test", "coach-prompt-v2"));
+
+        CoachOrchestrator orchestrator = new CoachOrchestrator(
+                learningStateEngine, knowledgeQueryPort, llmPort, repository,
+                new ObjectMapper(), new DiagnosticQuestionValidator(), 1, "coach-prompt-v2");
+
+        assertThatThrownBy(() -> orchestrator.generateDiagnosticSet(
+                "session-invalid", "stu-xiaoming", "course-data-structures", "kp-graph-bfs-dfs"))
+                .isInstanceOf(InvalidLlmOutputException.class)
+                .hasMessageContaining("remained invalid after retry");
+        verify(llmPort, org.mockito.Mockito.times(2)).complete(any());
+        verify(repository, never()).saveDiagnosticSet(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void retryPromptDefinesStructuredSchemaAndIncludesValidationFailureReason() {
+        LearningStateEngine learningStateEngine = mock(LearningStateEngine.class);
+        KnowledgeQueryPort knowledgeQueryPort = mock(KnowledgeQueryPort.class);
+        CoachRepository repository = mock(CoachRepository.class);
+        LlmPort llmPort = mock(LlmPort.class);
+        when(learningStateEngine.read("stu-xiaoming", "course-data-structures", "kp-graph-bfs-dfs"))
+                .thenReturn(view());
+        when(repository.findSession("session-prompt")).thenReturn(Optional.of(new CoachSession(
+                "session-prompt", "stu-xiaoming", "course-data-structures", "kp-graph-bfs-dfs", "DIAGNOSTIC",
+                "ACTIVE", RagStatus.EMPTY, 0.17, 0.74, 0.11, 0.71, "LOW_MASTERY",
+                "BKT_V1_FIXED_PARAMS/RASCH_MAP_V1", "baseline-ds-v1", Instant.now(), Instant.now())));
+        when(knowledgeQueryPort.search(any(), any(), any(), anyInt())).thenReturn(List.of(
+                new KnowledgeSearchResult("chunk-1", "doc-1", "讲义", "BFS 使用队列。", 0.9, List.of())));
+        when(llmPort.complete(any()))
+                .thenReturn(new LlmResponse(invalidJson(), "test", "test", "coach-prompt-v2"))
+                .thenReturn(new LlmResponse(validJson(), "test", "test", "coach-prompt-v2"));
+        when(repository.saveDiagnosticSet(any(), any(), any(), any(), any(), any(), any())).thenAnswer(invocation ->
+                invocation.getArgument(0));
+
+        CoachOrchestrator orchestrator = new CoachOrchestrator(
+                learningStateEngine, knowledgeQueryPort, llmPort, repository,
+                new ObjectMapper(), new DiagnosticQuestionValidator(), 1, "coach-prompt-v2");
+        orchestrator.generateDiagnosticSet("session-prompt", "stu-xiaoming", "course-data-structures",
+                "kp-graph-bfs-dfs");
+
+        var requests = org.mockito.ArgumentCaptor.forClass(LlmRequest.class);
+        verify(llmPort, org.mockito.Mockito.times(2)).complete(requests.capture());
+        assertThat(requests.getAllValues().get(0).userPrompt())
+                .contains("\"questions\"")
+                .contains("questionId")
+                .contains("diagnosticTarget")
+                .contains("knowledgePointId MUST exactly equal")
+                .contains("Return only one JSON object");
+        assertThat(requests.getAllValues().get(1).userPrompt())
+                .contains("Previous output failed contract validation")
+                .contains("Question identity or knowledge point is invalid");
+    }
+
+    @Test
     void ragFailureProducesDegradedResponseWithoutFakeCitation() {
         LearningStateEngine learningStateEngine = mock(LearningStateEngine.class);
         KnowledgeQueryPort knowledgeQueryPort = mock(KnowledgeQueryPort.class);
@@ -82,6 +154,15 @@ class CoachOrchestratorTest {
                 {"questions":[
                   {"questionId":"q-1","knowledgePointId":"kp-graph-bfs-dfs","questionType":"SINGLE_CHOICE","stem":"BFS uses which structure?","options":[{"optionId":"A","text":"队列"},{"optionId":"B","text":"栈"}],"correctAnswer":"A","explanation":"按层访问需要队列。","diagnosticTarget":{"code":"BFS_QUEUE_ORDER","description":"访问顺序"},"difficulty":0.5},
                   {"questionId":"q-2","knowledgePointId":"kp-graph-bfs-dfs","questionType":"SINGLE_CHOICE","stem":"DFS returns when?","options":[{"optionId":"A","text":"回溯"},{"optionId":"B","text":"永不返回"}],"correctAnswer":"A","explanation":"递归会回溯。","diagnosticTarget":{"code":"DFS_BACKTRACKING","description":"回溯"},"difficulty":0.6}
+                ]}
+                """;
+    }
+
+    private String invalidJson() {
+        return """
+                {"questions":[
+                  {"questionId":null,"knowledgePointId":null,"questionType":null,"stem":null,"options":[],"correctAnswer":null,"explanation":null,"diagnosticTarget":{"code":null,"description":null},"difficulty":null},
+                  {"questionId":null,"knowledgePointId":null,"questionType":null,"stem":null,"options":[],"correctAnswer":null,"explanation":null,"diagnosticTarget":{"code":null,"description":null},"difficulty":null}
                 ]}
                 """;
     }

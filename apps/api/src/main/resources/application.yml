@@ -45,7 +45,7 @@ app:
       model: ${LLM_MODEL:gpt-4o-mini}
       timeout-seconds: ${LLM_TIMEOUT_SECONDS:30}
       max-diagnostic-retries: ${LLM_MAX_DIAGNOSTIC_RETRIES:1}
-      prompt-version: ${LLM_PROMPT_VERSION:coach-prompt-v1}
+      prompt-version: ${LLM_PROMPT_VERSION:coach-prompt-v2}
     rag:
       top-k: ${RAG_TOP_K:4}
       embedding:

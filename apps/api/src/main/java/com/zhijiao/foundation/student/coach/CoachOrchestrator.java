@@ -123,28 +123,30 @@ public class CoachOrchestrator {
         }
         LearningStateView view = learningStateEngine.read(studentId, courseId, knowledgePointId);
         RagContext rag = retrieve(courseId, knowledgePointId, "诊断 " + view.state().knowledgePointName());
-        LlmResponse response = null;
-        List<DiagnosticQuestion> questions = null;
+        LlmResponse validatedResponse = null;
+        List<DiagnosticQuestion> validatedQuestions = null;
         RuntimeException lastFailure = null;
         for (int attempt = 0; attempt <= maxDiagnosticRetries; attempt++) {
             try {
-                response = llmPort.complete(new LlmRequest(
+                LlmResponse candidateResponse = llmPort.complete(new LlmRequest(
                         "Generate exactly two SINGLE_CHOICE diagnostic questions as JSON. Do not include markdown.",
-                        diagnosticPrompt(view, rag.results(), attempt > 0), true));
-                questions = parseQuestions(response, rag.results());
-                validator.validate(questions, knowledgePointId, 2);
+                        diagnosticPrompt(view, rag.results(), lastFailure == null ? null : lastFailure.getMessage()), true));
+                List<DiagnosticQuestion> candidateQuestions = parseQuestions(candidateResponse, rag.results());
+                validator.validate(candidateQuestions, knowledgePointId, 2);
+                validatedResponse = candidateResponse;
+                validatedQuestions = candidateQuestions;
                 break;
             } catch (DiagnosticValidationException | InvalidLlmOutputException exception) {
                 lastFailure = exception;
             }
         }
-        if (questions == null || response == null) {
+        if (validatedQuestions == null || validatedResponse == null) {
             throw new InvalidLlmOutputException("LLM diagnostic output remained invalid after retry", lastFailure);
         }
         String practiceSetId = "ps-diag-" + UUID.randomUUID().toString().replace("-", "");
-        repository.saveDiagnosticSet(practiceSetId, sessionId, knowledgePointId, questions, rag.status(), response,
+        repository.saveDiagnosticSet(practiceSetId, sessionId, knowledgePointId, validatedQuestions, rag.status(), validatedResponse,
                 view.state().sourceVersion());
-        return new DiagnosticSetResult(practiceSetId, questions, rag.status());
+        return new DiagnosticSetResult(practiceSetId, validatedQuestions, rag.status());
     }
 
     private RagContext retrieve(String courseId, String knowledgePointId, String query) {
@@ -192,12 +194,70 @@ public class CoachOrchestrator {
                 + ", userMessage=" + message + ", evidence=" + evidence;
     }
 
-    private String diagnosticPrompt(LearningStateView view, List<KnowledgeSearchResult> evidence, boolean retry) {
-        return "knowledgePointId=" + view.state().knowledgePointId() + ", knowledgePointName="
-                + view.state().knowledgePointName() + ", mastery=" + view.state().masteryProbability()
-                + ", confidence=" + view.state().confidence() + ", weaknessScore="
-                + view.weakKnowledgePoints().stream().findFirst().map(WeakKnowledgePointCandidate::weaknessScore).orElse(0.0)
-                + ", evidence=" + evidence + ", retry=" + retry;
+    private String diagnosticPrompt(LearningStateView view, List<KnowledgeSearchResult> evidence,
+                                    String previousValidationFailure) {
+        String retryInstruction = previousValidationFailure == null ? "" : """
+
+                Previous output failed contract validation: %s
+                Regenerate the entire JSON object following the exact schema.
+                """.formatted(previousValidationFailure);
+        return """
+                Generate exactly two diagnostic questions for the requested knowledge point.
+                Return only one JSON object with no markdown and no extra wrapper:
+                {
+                  "questions": [
+                    {
+                      "questionId": "q-1",
+                      "knowledgePointId": "<exact requested knowledgePointId>",
+                      "questionType": "SINGLE_CHOICE",
+                      "stem": "...",
+                      "options": [
+                        {"optionId": "A", "text": "..."},
+                        {"optionId": "B", "text": "..."}
+                      ],
+                      "correctAnswer": "A",
+                      "explanation": "...",
+                      "diagnosticTarget": {"code": "...", "description": "..."},
+                      "difficulty": 0.5
+                    },
+                    {
+                      "questionId": "q-2",
+                      "knowledgePointId": "<exact requested knowledgePointId>",
+                      "questionType": "SINGLE_CHOICE",
+                      "stem": "...",
+                      "options": [
+                        {"optionId": "A", "text": "..."},
+                        {"optionId": "B", "text": "..."}
+                      ],
+                      "correctAnswer": "A",
+                      "explanation": "...",
+                      "diagnosticTarget": {"code": "...", "description": "..."},
+                      "difficulty": 0.5
+                    }
+                  ]
+                }
+
+                Hard constraints:
+                - exactly 2 questions
+                - questionId is required, unique, and nonblank
+                - knowledgePointId MUST exactly equal the requested knowledgePointId
+                - questionType MUST equal SINGLE_CHOICE
+                - stem, explanation, diagnosticTarget.code, and diagnosticTarget.description are required and nonblank
+                - every question has at least 2 options with unique, nonblank optionId and option text
+                - correctAnswer MUST equal an optionId
+                - difficulty is a finite number in the inclusive range [0.0, 1.0]
+                - required fields must not be null
+                - do not include extra top-level fields or markdown
+                - use the supplied RAG evidence and do not invent citations
+
+                Requested knowledgePointId: %s
+                Knowledge point name: %s
+                Learning context: mastery=%s, confidence=%s, weaknessScore=%s
+                RAG evidence: %s%s
+                """.formatted(view.state().knowledgePointId(), view.state().knowledgePointName(),
+                view.state().masteryProbability(), view.state().confidence(),
+                view.weakKnowledgePoints().stream().findFirst().map(WeakKnowledgePointCandidate::weaknessScore).orElse(0.0),
+                evidence, retryInstruction);
     }
 
     private String normalizeMode(String mode) {
