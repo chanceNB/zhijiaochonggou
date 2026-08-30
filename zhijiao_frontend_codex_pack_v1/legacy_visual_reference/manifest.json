@@ -1,0 +1,227 @@
+[
+  {
+    "source": "src/styles/tokens.scss",
+    "pack_path": "legacy_visual_reference/src/styles/tokens.scss",
+    "sha256": "c7af85d9542c35a8a834d3b0df87231d6afccc164d7d847b3b44a298c31a6186"
+  },
+  {
+    "source": "src/styles/student-theme.scss",
+    "pack_path": "legacy_visual_reference/src/styles/student-theme.scss",
+    "sha256": "43e0bca000158477fe905a20053d507023d3e79618d522d2deb687b85b00ff52"
+  },
+  {
+    "source": "src/pages/teacher/teacher-overhaul.scss",
+    "pack_path": "legacy_visual_reference/src/pages/teacher/teacher-overhaul.scss",
+    "sha256": "92355cc1d2ff463c147fe98bdb139e6d974b6813124f3a5184563baf904edc36"
+  },
+  {
+    "source": "src/layouts/StudentLayout.vue",
+    "pack_path": "legacy_visual_reference/src/layouts/StudentLayout.visual.vue",
+    "sha256": "f46d19bbda7832705636d2c29cb4dd9970876b80c3fd612aff7063616459fecb"
+  },
+  {
+    "source": "src/components/student/layout/StudentSidebar.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/layout/StudentSidebar.visual.vue",
+    "sha256": "3fbc91d156ae7ccabfb9b0945ce542e6feb021f6f858a7627629288d7c457f8a"
+  },
+  {
+    "source": "src/pages/student/StudentTodayPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentTodayPage.visual.vue",
+    "sha256": "3a45ce4c97722bbcb4b8edf6c27c9a431dcdc0694ba57c9409d1964d923ed112"
+  },
+  {
+    "source": "src/pages/student/StudentAiCoachPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentAiCoachPage.visual.vue",
+    "sha256": "351b3f7d67ea5853ccf5701c46b348c37b61f9631fc847f7dd0e5aba4b5722d3"
+  },
+  {
+    "source": "src/pages/student/StudentPracticePage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentPracticePage.visual.vue",
+    "sha256": "625b73a559f337956a2d53f19cf5e3159952473477737d33cdf199d373ed94b5"
+  },
+  {
+    "source": "src/pages/student/StudentWrongBookPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentWrongBookPage.visual.vue",
+    "sha256": "f9e3c18e6c465e902ca6306b7a4db539841bf6ffcc71b730139f8c0dc6914c6e"
+  },
+  {
+    "source": "src/pages/student/StudentGrowthPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentGrowthPage.visual.vue",
+    "sha256": "e624f9e8e57eb0f65507bf51411311f6bca67f3f56b358fb6fb8ce4bb0e8642c"
+  },
+  {
+    "source": "src/pages/student/StudentKnowledgeBasePage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/student/StudentKnowledgeBasePage.visual.vue",
+    "sha256": "7af50cd3f5245bab1965d2e2eff195916a1fd61cd1c849336ae7c1ff341a7728"
+  },
+  {
+    "source": "src/components/student/today/DailyPlanCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/DailyPlanCard.visual.vue",
+    "sha256": "753e3fe280e36c4c732a9207d08c43769a5caae77190475f560a67e2f1163e5e"
+  },
+  {
+    "source": "src/components/student/today/LearningProgressCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/LearningProgressCard.visual.vue",
+    "sha256": "903521ac6fa8406b72778fa330d6587565cf3005b293387cec011759d13ef25a"
+  },
+  {
+    "source": "src/components/student/today/LearningStepTimeline.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/LearningStepTimeline.visual.vue",
+    "sha256": "be65cb07fd7758a6c27f3468cd66b02dc68cfc20d5ae4daff870f22c83b92d1c"
+  },
+  {
+    "source": "src/components/student/today/QuickAskCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/QuickAskCard.visual.vue",
+    "sha256": "5d5d6aa5126821ad8a8a2b1fa8e56d071015d6fd0d7a6e38c877bca733f408ac"
+  },
+  {
+    "source": "src/components/student/today/TodayTaskList.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/TodayTaskList.visual.vue",
+    "sha256": "48259afd90e17c8cfcfbdc0dc4991a9016be03c14c6666522321f9c94faa25a7"
+  },
+  {
+    "source": "src/components/student/today/WrongQuestionReminder.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/today/WrongQuestionReminder.visual.vue",
+    "sha256": "479eac4340ed85086f9abc969c4f847af5351a4d2382420134cb8fc5c836b232"
+  },
+  {
+    "source": "src/components/student/ai-coach/CoachComposer.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/ai-coach/CoachComposer.visual.vue",
+    "sha256": "6f1bfe414e07dc029281667274521b0eb91c446ae2df082f51b2b779198104a0"
+  },
+  {
+    "source": "src/components/student/ai-coach/CoachConversation.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/ai-coach/CoachConversation.visual.vue",
+    "sha256": "7b7ad100b378e63b2f3f11a5a73f55eaa8e51a08d4127bb76192a1e9fc563e35"
+  },
+  {
+    "source": "src/components/student/ai-coach/CoachDiagnosticActionCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/ai-coach/CoachDiagnosticActionCard.visual.vue",
+    "sha256": "bc697637a72359896e320dda7a592b1156860e2b35ba8dd8f44eeabac583edf3"
+  },
+  {
+    "source": "src/components/student/ai-coach/CoachSessionList.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/ai-coach/CoachSessionList.visual.vue",
+    "sha256": "eaac3a61e9b8ae773d9c5c7b504bfad661ccd4d6ba658c4032284a9fcfb9283b"
+  },
+  {
+    "source": "src/components/student/ai-coach/SourceReferencePanel.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/ai-coach/SourceReferencePanel.visual.vue",
+    "sha256": "cbbd8ea8a17644776035b6497dde25dcea2868a87c9535746a9c0eed23e92bfa"
+  },
+  {
+    "source": "src/components/student/practice/AnswerWorkspace.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/practice/AnswerWorkspace.visual.vue",
+    "sha256": "f07c2301d476b2647b1a4b9bf193f6af19428f1e428f00babe37d3dbb63481f8"
+  },
+  {
+    "source": "src/components/student/practice/PracticePreview.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/practice/PracticePreview.visual.vue",
+    "sha256": "67b5bf63a7492df405fb126f6a1df3d6f3f8ba931c218e657f9e43c323740907"
+  },
+  {
+    "source": "src/components/student/wrong-book/WrongQuestionList.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/wrong-book/WrongQuestionList.visual.vue",
+    "sha256": "9ecf8349856fc53e9d3eea10fc0837eb7c6a78ca65c19c7db55645a787c97e4e"
+  },
+  {
+    "source": "src/components/student/wrong-book/ErrorAnalysisPanel.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/wrong-book/ErrorAnalysisPanel.visual.vue",
+    "sha256": "41204c4157bc27137410938aaa429f63444d30ccc5ba9d2ef2458099f07930f5"
+  },
+  {
+    "source": "src/components/student/wrong-book/ReviewActionBar.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/wrong-book/ReviewActionBar.visual.vue",
+    "sha256": "b58f426e7e43cee072273e375013dee6f61c558f2d08c31cc79896a02a47614c"
+  },
+  {
+    "source": "src/components/student/growth/MasteryTrendChart.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/growth/MasteryTrendChart.visual.vue",
+    "sha256": "37b8ecd23a77b2d1a55ed1c63e8a17750209ff94c43c53df35d98e08af152cd5"
+  },
+  {
+    "source": "src/components/student/growth/RecentImprovementCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/growth/RecentImprovementCard.visual.vue",
+    "sha256": "555a1554c2908e7e7d23f23f53aef77317bc425e47cc2ca953a3bcce8a003006"
+  },
+  {
+    "source": "src/components/student/knowledge-base/KnowledgeSummary.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/knowledge-base/KnowledgeSummary.visual.vue",
+    "sha256": "8b3de57a60fdc7540e52c001b11cbfbfb32af72288d076c1456f653bbe2cd8ca"
+  },
+  {
+    "source": "src/components/student/knowledge-base/MaterialTable.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/knowledge-base/MaterialTable.visual.vue",
+    "sha256": "f40e6d508bfe513ed8ce825e349635ed56e4defe9f368fc12eea31f424241ce5"
+  },
+  {
+    "source": "src/components/student/knowledge-base/UploadMaterialPanel.vue",
+    "pack_path": "legacy_visual_reference/src/components/student/knowledge-base/UploadMaterialPanel.visual.vue",
+    "sha256": "603afcacd7ced94edc56c33a063699cc1588d10496331ad1b1c2969490175262"
+  },
+  {
+    "source": "src/layouts/TeacherLayout.vue",
+    "pack_path": "legacy_visual_reference/src/layouts/TeacherLayout.visual.vue",
+    "sha256": "6e3cccac0029ee802dd962f3412a9a14400af09c9bf7953e64dc164962a09517"
+  },
+  {
+    "source": "src/components/teacher/TeacherSidebar.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/TeacherSidebar.visual.vue",
+    "sha256": "96a0df1a92dce3f01d3d75796f2bbfa3314df3a64ce593a6d3fe255cb5a886ca"
+  },
+  {
+    "source": "src/components/teacher/TeacherTopHeader.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/TeacherTopHeader.visual.vue",
+    "sha256": "a3e19ef3321a899308a7ba21e09005a87cd43a9a97852b4aab9de702f61bafec"
+  },
+  {
+    "source": "src/pages/teacher/TeacherDashboardPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/teacher/TeacherDashboardPage.visual.vue",
+    "sha256": "8ba76b5257b0f379e7c9aa9b3b015ed2d14c342b52394ba0e8c2326ea5c3fc0e"
+  },
+  {
+    "source": "src/pages/teacher/TeacherStudentProfilePage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/teacher/TeacherStudentProfilePage.visual.vue",
+    "sha256": "86b186b9aace952b31eda187561c172fa4fab99a104cf21b6376f87d815a6190"
+  },
+  {
+    "source": "src/pages/teacher/TeacherInterventionLabPage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/teacher/TeacherInterventionLabPage.visual.vue",
+    "sha256": "b0a8ea42ce0938f297377aa24e9d6ed297fb739c7a9e3ded83bd33cd62ec69bc"
+  },
+  {
+    "source": "src/pages/teacher/TeacherCourseKnowledgeBasePage.vue",
+    "pack_path": "legacy_visual_reference/src/pages/teacher/TeacherCourseKnowledgeBasePage.visual.vue",
+    "sha256": "119d86ee2ddf9f2b29a305aac270fca42565d6a6dbbce5e5c675f68defb2a72b"
+  },
+  {
+    "source": "src/components/teacher/DashboardKpiCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/DashboardKpiCard.visual.vue",
+    "sha256": "b613b39cc331171c6b652252afd22836dbaabe0496745584992f89b3249f106b"
+  },
+  {
+    "source": "src/components/teacher/RiskActivityList.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/RiskActivityList.visual.vue",
+    "sha256": "ecfb4e80998f2b3f6ddfc790132cee30a9bd39e66016b5254feac67cf1e9ae16"
+  },
+  {
+    "source": "src/components/teacher/TeacherTodoPanel.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/TeacherTodoPanel.visual.vue",
+    "sha256": "1d42a473b7959335eaae69ba019453e0948b9030ac4526c19bb7a11dbe1e6177"
+  },
+  {
+    "source": "src/components/teacher/ai-report/EvidenceSourceCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/ai-report/EvidenceSourceCard.visual.vue",
+    "sha256": "c9461747b916b261136a293a1c4076aa9c39af373c23db7a117381d970d90e8b"
+  },
+  {
+    "source": "src/components/teacher/ai-report/ForecastVsActualCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/ai-report/ForecastVsActualCard.visual.vue",
+    "sha256": "a3d5d7752675a38b2faa3bd95c6fdf4da7fee092a19909ee2c129fb3d38af33b"
+  },
+  {
+    "source": "src/components/teacher/ai-report/TeacherDecisionCard.vue",
+    "pack_path": "legacy_visual_reference/src/components/teacher/ai-report/TeacherDecisionCard.visual.vue",
+    "sha256": "48b4c160cf4a7ab37822085fadbea322816692f8bdcc41a593b1ac4a539daaed"
+  }
+]

@@ -1,0 +1,228 @@
+/* VISUAL REFERENCE ONLY. DO NOT COPY OLD BUSINESS SEMANTICS. */
+/* Teacher portal visual system: restrained blue-white operational UI. */
+.teacher-theme .teacher-content,
+.teacher-theme .teacher-dashboard-page,
+.teacher-theme .dashboard-wide-stack {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.teacher-theme .dashboard-wide-stack {
+  width: 100%;
+}
+
+.teacher-theme .teacher-page,
+.teacher-theme .teacher-dashboard-page,
+.teacher-theme .teacher-reports-page,
+.teacher-theme .teacher-knowledge-base-page,
+.teacher-theme .intervention-lab-page {
+  color: #172b4d;
+  background: #f5f8fc;
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.teacher-theme .panel,
+.teacher-theme .dashboard-panel,
+.teacher-theme .primary-task,
+.teacher-theme .metric-card,
+.teacher-theme .kpi-card,
+.teacher-theme .summary-card,
+.teacher-theme .story-section {
+  border: 1px solid #e3eaf4;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(36, 74, 128, 0.06);
+}
+.teacher-theme .page-heading,
+.teacher-theme .page-header,
+.teacher-theme .decision-heading,
+.teacher-theme .diagnosis-header {
+  margin-bottom: 20px;
+}
+.teacher-theme .heading-icon,
+.teacher-theme .primary-task-icon,
+.teacher-theme .metric-icon,
+.teacher-theme .overview-icon {
+  border-radius: 10px;
+  background: #eaf2ff;
+  color: #2467ef;
+}
+.teacher-theme .heading-copy h1,
+.teacher-theme .decision-heading h1,
+.teacher-theme .diagnosis-header h1 {
+  color: #142847;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.teacher-theme .heading-copy p,
+.teacher-theme .decision-heading p,
+.teacher-theme .diagnosis-header p {
+  color: #72819a;
+}
+.teacher-theme .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
+  border-color: #2467ef;
+  background: #2467ef;
+}
+.teacher-theme .el-button--primary:not(.is-plain):not(.is-link):not(.is-text):hover {
+  background: #1856d8;
+  border-color: #1856d8;
+}
+.teacher-theme .el-button--primary.is-plain {
+  border-color: #b8cdfc;
+  background: #f4f7ff;
+  color: #2467ef;
+}
+.teacher-theme .el-button--primary.is-plain:hover {
+  border-color: #8fb1f6;
+  background: #eaf2ff;
+  color: #1856d8;
+}
+.teacher-theme .el-button--primary.is-link {
+  border-color: transparent;
+  background: transparent;
+  color: #2467ef;
+}
+.teacher-theme .el-button--primary.is-link:hover {
+  border-color: transparent;
+  background: #eaf2ff;
+  color: #1856d8;
+}
+.teacher-theme .el-button--primary.is-disabled,
+.teacher-theme .el-button--primary:disabled {
+  border-color: #e4eaf3;
+  background: #edf1f7;
+  color: #9aa7bb;
+}
+.teacher-theme .filter-bar,
+.teacher-theme .filter-strip,
+.teacher-theme .toolbar,
+.teacher-theme .report-settings {
+  border: 1px solid #e3eaf4;
+  border-radius: 10px;
+  background: #fff;
+}
+.teacher-theme .state-panel {
+  border-color: #cbd8eb;
+  border-radius: 10px;
+  background: #fff;
+}
+.teacher-theme table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.teacher-theme th {
+  background: #f7f9fc;
+  color: #6d7d96;
+  font-weight: 600;
+}
+.teacher-theme tr:hover td {
+  background: #f7faff;
+}
+.teacher-theme .status-tabs button,
+.teacher-theme .detail-tabs button,
+.teacher-theme .course-tabs button {
+  border-radius: 7px;
+}
+.teacher-theme .status-tabs button.active,
+.teacher-theme .detail-tabs button.active {
+  color: #2467ef;
+  background: #eaf2ff;
+}
+.teacher-theme .diagnosis-route-panel {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #e3eaf4;
+  border-radius: 10px;
+  background: #fff;
+}
+.teacher-theme .diagnosis-route-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e9eef5;
+}
+.teacher-theme .diagnosis-route-panel h2 {
+  margin: 5px 0;
+  color: #142847;
+}
+.teacher-theme .diagnosis-route-panel header p {
+  margin: 0;
+  color: #72819a;
+}
+.teacher-theme .report-story {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.teacher-theme .report-story article {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f5f8fc;
+}
+.teacher-theme .report-story span {
+  color: #72819a;
+  font-size: 13px;
+}
+.teacher-theme .report-story strong {
+  color: #17396f;
+  font-size: 18px;
+}
+.teacher-theme .report-story p {
+  margin: 0;
+  color: #66758b;
+}
+.teacher-theme .report-actions {
+  display: flex;
+  gap: 10px;
+}
+.teacher-theme .evidence-review-list {
+  display: grid;
+  gap: 8px;
+}
+.teacher-theme .evidence-review-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #e3eaf4;
+  border-radius: 8px;
+}
+.teacher-theme .evidence-review-list p {
+  margin: 5px 0 0;
+  color: #72819a;
+}
+.teacher-theme .evidence-review-list > article > span {
+  color: #16835b;
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  .teacher-theme .page-heading,
+  .teacher-theme .page-header {
+    gap: 12px;
+  }
+  .teacher-theme .panel,
+  .teacher-theme .dashboard-panel {
+    border-radius: 8px;
+  }
+  .teacher-theme .diagnosis-route-panel > header {
+    display: grid;
+  }
+  .teacher-theme .report-story {
+    grid-template-columns: 1fr;
+  }
+  .teacher-theme .report-actions {
+    flex-wrap: wrap;
+  }
+  .teacher-theme .evidence-review-list article {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .teacher-theme .evidence-review-list article .el-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
