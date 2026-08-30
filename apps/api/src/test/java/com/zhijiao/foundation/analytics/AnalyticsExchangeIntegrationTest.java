@@ -217,7 +217,8 @@ class AnalyticsExchangeIntegrationTest {
         mockMvc.perform(get("/api/v1/analytics/smartbi/freshness"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items").isArray())
-                .andExpect(jsonPath("$.data.items[?(@.datasetKey == 'sb_fact_practice_attempt')]").isNotEmpty());
+                .andExpect(jsonPath("$.data.items[?(@.datasetKey == 'sb_fact_practice_attempt')]").isNotEmpty())
+                .andExpect(jsonPath("$.data.status").value("FRESH"));
     }
 
     @Test
@@ -235,5 +236,24 @@ class AnalyticsExchangeIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(Files.readAllLines(java.nio.file.Path.of(diagnosisCsv))).isNotEmpty();
+    }
+
+    @Test
+    void createsScopedCanonicalCsvPackageWhenDemoRunIdIsProvided() throws Exception {
+        DemoRun run = demoRunService.create(BaselineSeedService.DEMO_CASE_ID, BaselineSeedService.BASELINE_VERSION);
+
+        AnalyticsExport export = exportService.create("ACTIVE_DEMO", run.demoRunId(), "t09-scoped-export");
+
+        assertThat(export.status()).isEqualTo("SUCCEEDED");
+        assertThat(export.scope()).isEqualTo("ACTIVE_DEMO");
+        assertThat(export.demoRunId()).isEqualTo(run.demoRunId());
+        assertThat(export.files()).hasSize(11);
+        assertThat(Files.readString(java.nio.file.Path.of(export.manifestPath())))
+                .contains("\"demoRunId\":\"" + run.demoRunId() + "\"");
+        String studentCsv = export.files().stream()
+                .filter(path -> path.endsWith("sb_dim_student.csv"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(Files.readAllLines(java.nio.file.Path.of(studentCsv))).isNotEmpty();
     }
 }

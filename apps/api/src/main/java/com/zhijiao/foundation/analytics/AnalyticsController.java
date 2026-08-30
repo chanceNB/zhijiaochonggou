@@ -42,7 +42,7 @@ public class AnalyticsController {
         Instant latestProjection = items.stream().map(AnalyticsFreshness::latestProjectionTime)
                 .max(Instant::compareTo).orElse(null);
         long lagSeconds = latestSource == null || latestProjection == null ? 0 :
-                Math.max(0, java.time.Duration.between(latestSource, latestProjection).getSeconds());
+                Math.max(0, java.time.Duration.between(latestProjection, latestSource).getSeconds());
         String status = latestSource == null ? "NO_DATA" : lagSeconds <= 60 ? "FRESH" : "STALE";
         return success(request, new FreshnessResponse(items, latestSource, latestProjection, lagSeconds, status));
     }

@@ -96,7 +96,8 @@ public class AnalyticsExportService {
         }
         try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             jdbcTemplate.query(sql, ps -> {
-                if (demoRunId != null && !demoRunId.isBlank()) {
+                if (demoRunId != null && !demoRunId.isBlank()
+                        && (dataset.startsWith("sb_fact_") || dataset.equals("sb_demo_run_state"))) {
                     ps.setString(1, demoRunId);
                 }
             }, rs -> {
