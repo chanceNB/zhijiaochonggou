@@ -17,6 +17,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelopeHealthStatus'
+  /student/today:
+    get:
+      operationId: getStudentToday
+      summary: Read the student Today assignment and learning state
+      parameters:
+        - name: courseId
+          in: query
+          required: false
+          description: Demo context override; defaults to the Golden Demo course.
+          schema:
+            type: string
+        - name: studentId
+          in: query
+          required: false
+          description: Demo context override; authenticated deployments derive this from the current user.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student Today read model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeTodayResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
   /student/learning-state:
     get:
       operationId: getStudentLearningState
@@ -542,6 +568,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelope'
+  /teacher/interventions/{interventionId}/outcome:
+    get:
+      operationId: getInterventionOutcome
+      summary: Read the B-owned intervention outcome
+      description: Reads persisted before/after learning state, transfer validation, and prediction deviation after student completion.
+      parameters:
+        - name: interventionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Intervention outcome
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeInterventionOutcome'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
   /demo/runs:
     post:
       operationId: createDemoRun
@@ -848,6 +893,63 @@ components:
         service:
           type: string
           example: foundation-api
+    TodayResponse:
+      type: object
+      required: [studentId, nextAction, learningState, demoCaseId]
+      properties:
+        studentId: {type: string}
+        nextAction:
+          $ref: '#/components/schemas/TodayNextAction'
+        teacherAssignment:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/TeacherAssignment'
+        learningState:
+          $ref: '#/components/schemas/TodayLearningState'
+        demoCaseId: {type: string, nullable: true}
+    TodayNextAction:
+      type: object
+      required: [type, title, knowledgePointId, estimatedMinutes]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        knowledgePointId: {type: string}
+        estimatedMinutes: {type: integer, minimum: 0}
+    TeacherAssignment:
+      type: object
+      required: [assignmentId, interventionId, practiceSetId, studentId, courseId, classId,
+                 knowledgePointId, status, createdAt, sourceVersion]
+      properties:
+        assignmentId: {type: string}
+        interventionId: {type: string}
+        practiceSetId: {type: string}
+        studentId: {type: string}
+        courseId: {type: string}
+        classId: {type: string}
+        knowledgePointId: {type: string}
+        status: {type: string, enum: [PENDING_STUDENT, IN_PROGRESS, COMPLETED]}
+        dueAt: {type: string, format: date-time, nullable: true}
+        createdAt: {type: string, format: date-time}
+        demoRunId: {type: string, nullable: true}
+        demoCaseId: {type: string, nullable: true}
+        correlationId: {type: string, nullable: true}
+        sourceVersion: {type: string}
+    TodayLearningState:
+      type: object
+      required: [knowledgePointId, mastery, confidence, forgettingRisk, evidenceCount]
+      properties:
+        knowledgePointId: {type: string}
+        mastery: {type: number, minimum: 0, maximum: 1}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        forgettingRisk: {type: number, minimum: 0, maximum: 1}
+        evidenceCount: {type: integer, minimum: 1}
+    ApiEnvelopeTodayResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TodayResponse'
     LearningStateResponse:
       type: object
       required: [studentId, courseId, knowledgePointId, knowledgePointName, mastery,
@@ -964,8 +1066,24 @@ components:
           minimum: 0
         latestIntervention:
           nullable: true
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/GrowthLatestIntervention'
+    GrowthLatestIntervention:
+      type: object
+      required: [strategyCode, masteryBefore, masteryAfter, transferValidation]
+      properties:
+        strategyCode: {type: string}
+        masteryBefore: {type: number, minimum: 0, maximum: 1}
+        masteryAfter: {type: number, minimum: 0, maximum: 1}
+        transferValidation: {type: string, enum: [PASS, FAIL, NOT_RUN]}
+        predictedLift: {type: number, nullable: true}
+        actualLift: {type: number, nullable: true}
+        predictionDeviation: {type: number, nullable: true}
+        confidenceBefore: {type: number, nullable: true, minimum: 0, maximum: 1}
+        confidenceAfter: {type: number, nullable: true, minimum: 0, maximum: 1}
+        forgettingRiskBefore: {type: number, nullable: true, minimum: 0, maximum: 1}
+        forgettingRiskAfter: {type: number, nullable: true, minimum: 0, maximum: 1}
+        evidenceCountBefore: {type: integer, nullable: true, minimum: 0}
+        evidenceCountAfter: {type: integer, nullable: true, minimum: 0}
     ApiEnvelopeGrowthReadModel:
       allOf:
         - $ref: '#/components/schemas/ApiEnvelope'
@@ -1154,11 +1272,12 @@ components:
         attemptTime: {type: string, format: date-time}
     PracticeSetResponse:
       type: object
-      required: [practiceSetId, studentId, courseId, source, status, questions, attempts]
+      required: [practiceSetId, studentId, courseId, classId, source, status, questions, attempts, sourceVersion]
       properties:
         practiceSetId: {type: string}
         studentId: {type: string}
         courseId: {type: string}
+        classId: {type: string}
         source:
           type: string
           enum: [AI_COACH_DIAGNOSTIC, AI_COACH_SIMILAR, TEACHER_ASSIGNMENT]
@@ -1166,7 +1285,10 @@ components:
           type: string
           enum: [OPEN, COMPLETED]
         coachSessionId: {type: string, nullable: true}
+        demoRunId: {type: string, nullable: true}
         demoCaseId: {type: string, nullable: true}
+        correlationId: {type: string, nullable: true}
+        sourceVersion: {type: string}
         questions:
           type: array
           items: {$ref: '#/components/schemas/StudentQuestion'}
@@ -1204,6 +1326,64 @@ components:
         accuracy: {type: number, minimum: 0, maximum: 1}
         attemptCount: {type: integer, minimum: 0}
         learningStateStatus: {type: string}
+        transferValidation: {type: string, enum: [PASS, FAIL, NOT_RUN], nullable: true}
+        learningStateAfter:
+          nullable: true
+          $ref: '#/components/schemas/LearningStateAfter'
+        interventionOutcomeId: {type: string, nullable: true}
+    LearningStateAfter:
+      type: object
+      required: [mastery, confidence, forgettingRisk, evidenceCount]
+      properties:
+        mastery: {type: number, minimum: 0, maximum: 1}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        forgettingRisk: {type: number, minimum: 0, maximum: 1}
+        evidenceCount: {type: integer, minimum: 1}
+    InterventionOutcome:
+      type: object
+      required: [outcomeId, interventionId, assignmentId, practiceSetId, studentId, courseId, classId,
+                 knowledgePointId, predictedLift, predictionLow, predictionHigh, masteryBefore,
+                 confidenceBefore, forgettingRiskBefore, evidenceCountBefore, masteryAfter, confidenceAfter,
+                 forgettingRiskAfter, evidenceCountAfter, actualLift, predictionDeviation, transferValidation,
+                 practiceAccuracyAfter, dataOrigin, sourceVersion, completedAt]
+      properties:
+        outcomeId: {type: string}
+        interventionId: {type: string}
+        assignmentId: {type: string}
+        practiceSetId: {type: string}
+        studentId: {type: string}
+        courseId: {type: string}
+        classId: {type: string}
+        knowledgePointId: {type: string}
+        predictedLift: {type: number}
+        predictionLow: {type: number}
+        predictionHigh: {type: number}
+        masteryBefore: {type: number, minimum: 0, maximum: 1}
+        confidenceBefore: {type: number, minimum: 0, maximum: 1}
+        forgettingRiskBefore: {type: number, minimum: 0, maximum: 1}
+        weaknessScoreBefore: {type: number, nullable: true, minimum: 0, maximum: 1}
+        evidenceCountBefore: {type: integer, minimum: 1}
+        masteryAfter: {type: number, minimum: 0, maximum: 1}
+        confidenceAfter: {type: number, minimum: 0, maximum: 1}
+        forgettingRiskAfter: {type: number, minimum: 0, maximum: 1}
+        evidenceCountAfter: {type: integer, minimum: 1}
+        actualLift: {type: number}
+        predictionDeviation: {type: number}
+        transferValidation: {type: string, enum: [PASS, FAIL, NOT_RUN]}
+        practiceAccuracyAfter: {type: number, minimum: 0, maximum: 1}
+        dataOrigin: {type: string}
+        demoRunId: {type: string, nullable: true}
+        demoCaseId: {type: string, nullable: true}
+        correlationId: {type: string, nullable: true}
+        sourceVersion: {type: string}
+        completedAt: {type: string, format: date-time}
+    ApiEnvelopeInterventionOutcome:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/InterventionOutcome'
     AddWrongBookRequest:
       type: object
       properties:

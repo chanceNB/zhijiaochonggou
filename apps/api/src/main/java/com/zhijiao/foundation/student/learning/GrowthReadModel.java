@@ -19,7 +19,21 @@ public record GrowthReadModel(
             String strategyCode,
             double masteryBefore,
             double masteryAfter,
-            String transferValidation
+            String transferValidation,
+            Double predictedLift,
+            Double actualLift,
+            Double predictionDeviation,
+            Double confidenceBefore,
+            Double confidenceAfter,
+            Double forgettingRiskBefore,
+            Double forgettingRiskAfter,
+            Integer evidenceCountBefore,
+            Integer evidenceCountAfter
     ) {
+        public LatestIntervention(String strategyCode, double masteryBefore, double masteryAfter,
+                                  String transferValidation) {
+            this(strategyCode, masteryBefore, masteryAfter, transferValidation, null, null, null,
+                    null, null, null, null, null, null);
+        }
     }
 }

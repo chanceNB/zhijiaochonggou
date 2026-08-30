@@ -21,11 +21,18 @@ public class StudentLearningStateController {
     private static final String DEFAULT_DEMO_STUDENT_ID = "stu-xiaoming";
 
     private final LearningStateEngine learningStateEngine;
+    private final GrowthReadModelService growthReadModelService;
     private final Clock clock;
 
-    public StudentLearningStateController(LearningStateEngine learningStateEngine, Clock clock) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public StudentLearningStateController(LearningStateEngine learningStateEngine, GrowthReadModelService growthReadModelService, Clock clock) {
         this.learningStateEngine = learningStateEngine;
+        this.growthReadModelService = growthReadModelService;
         this.clock = clock;
+    }
+
+    public StudentLearningStateController(LearningStateEngine learningStateEngine, Clock clock) {
+        this(learningStateEngine, null, clock);
     }
 
     @GetMapping("/learning-state")
@@ -53,7 +60,10 @@ public class StudentLearningStateController {
             @RequestParam(required = false, defaultValue = DEFAULT_DEMO_STUDENT_ID) String studentId,
             HttpServletRequest request) {
         String requestId = (String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
-        return ApiEnvelope.success(requestId, learningStateEngine.readGrowth(studentId, courseId), Instant.now(clock));
+        GrowthReadModel growth = growthReadModelService == null
+                ? learningStateEngine.readGrowth(studentId, courseId)
+                : growthReadModelService.read(studentId, courseId);
+        return ApiEnvelope.success(requestId, growth, Instant.now(clock));
     }
 
     private static WeakKnowledgePointResponse toCandidate(WeakKnowledgePointCandidate candidate) {

@@ -3,6 +3,14 @@ package com.zhijiao.foundation.student.practice;
 import com.zhijiao.foundation.demo.BaselineSeedService;
 import com.zhijiao.foundation.analytics.AnalyticsProjectionService;
 import com.zhijiao.foundation.student.learning.LearningStateEngine;
+import com.zhijiao.foundation.student.learning.LearningStateRepository;
+import com.zhijiao.foundation.student.learning.StudentKnowledgeState;
+import com.zhijiao.foundation.teacher.Intervention;
+import com.zhijiao.foundation.teacher.InterventionAssignment;
+import com.zhijiao.foundation.teacher.InterventionOutcome;
+import com.zhijiao.foundation.teacher.InterventionOutcomeService;
+import com.zhijiao.foundation.teacher.InterventionRepository;
+import com.zhijiao.foundation.teacher.TransferValidation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,26 +26,37 @@ public class PracticeService {
     private final Clock clock;
     private final PracticeContextResolver contextResolver;
     private final AnalyticsProjectionService analyticsProjectionService;
+    private final InterventionRepository interventionRepository;
+    private final InterventionOutcomeService interventionOutcomeService;
+    private final TeacherAssignmentProvisioner assignmentProvisioner;
 
     @org.springframework.beans.factory.annotation.Autowired
     public PracticeService(PracticeRepository repository, LearningStateEngine learningStateEngine,
                            Clock clock, PracticeContextResolver contextResolver,
-                           AnalyticsProjectionService analyticsProjectionService) {
+                           AnalyticsProjectionService analyticsProjectionService,
+                           InterventionRepository interventionRepository,
+                           InterventionOutcomeService interventionOutcomeService,
+                           TeacherAssignmentProvisioner assignmentProvisioner) {
         this.repository = repository;
         this.learningStateEngine = learningStateEngine;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.contextResolver = contextResolver == null ? new PracticeContextResolver(repository) : contextResolver;
         this.analyticsProjectionService = analyticsProjectionService;
+        this.interventionRepository = interventionRepository;
+        this.interventionOutcomeService = interventionOutcomeService;
+        this.assignmentProvisioner = assignmentProvisioner;
     }
 
     public PracticeService(PracticeRepository repository, LearningStateEngine learningStateEngine,
                            Clock clock, PracticeContextResolver contextResolver) {
-        this(repository, learningStateEngine, clock, contextResolver, null);
+        this(repository, learningStateEngine, clock, contextResolver, null, null, null, null);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PracticeSetView getPracticeSet(String practiceSetId) {
         PracticeSet set = repository.findSet(practiceSetId).orElseThrow(() -> new PracticeSetNotFoundException(practiceSetId));
+        InterventionAssignment assignment = findAssignment(practiceSetId);
+        if (assignment != null && assignmentProvisioner != null) assignmentProvisioner.ensureProvisioned(assignment);
         List<StudentQuestion> questions = repository.findQuestions(practiceSetId).stream().map(StudentQuestion::from).toList();
         List<PracticeAttemptSummary> attempts = repository.findAttempts(practiceSetId).stream()
                 .map(attempt -> new PracticeAttemptSummary(attempt.attemptId(), attempt.questionId(), attempt.selectedAnswer(),
@@ -65,6 +84,12 @@ public class PracticeService {
         repository.bindDemoContext(practiceSetId, demo);
         PracticeRepository.AttemptRow attempt = grade(set, question, answer.trim(), durationSeconds, idempotencyKey, demo);
         repository.insertAttempt(attempt);
+        if (interventionRepository != null) {
+            interventionRepository.findAssignmentByPracticeSet(practiceSetId).ifPresent(found -> {
+                repository.bindAttemptToIntervention(attempt.attemptId(), practiceSetId);
+                repository.markAssignmentInProgress(practiceSetId);
+            });
+        }
         if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         // INSERT ... ON CONFLICT DO NOTHING makes the replay path safe on PostgreSQL,
         // where a caught unique-constraint error would otherwise abort the transaction.
@@ -90,13 +115,38 @@ public class PracticeService {
     public PracticeOutcome complete(String practiceSetId) {
         PracticeSet set = repository.findSet(practiceSetId).orElseThrow(() -> new PracticeSetNotFoundException(practiceSetId));
         PracticeOutcome existing = repository.findOutcome(practiceSetId).orElse(null);
-        if (existing != null) return existing;
+        if (existing != null) {
+            InterventionAssignment existingAssignment = findAssignment(practiceSetId);
+            if (existingAssignment != null && interventionOutcomeService != null) {
+                return interventionOutcomeService.findByIntervention(existingAssignment.interventionId())
+                        .map(outcome -> withInterventionOutcome(existing, outcome))
+                        .orElse(existing);
+            }
+            return existing;
+        }
         List<PracticeRepository.AttemptRow> attempts = repository.findAttempts(practiceSetId);
+        InterventionAssignment assignment = findAssignment(practiceSetId);
+        if (assignment != null && assignmentProvisioner != null) assignmentProvisioner.ensureProvisioned(assignment);
         PracticeRepository.DemoContext activeDemo = contextResolver.activeDemo(set.studentId(), set.courseId());
         ensureActiveDemo(set, attempts, activeDemo);
         repository.bindDemoContext(practiceSetId, activeDemo);
         double accuracy = attempts.isEmpty() ? 0.0 : attempts.stream().filter(PracticeRepository.AttemptRow::correct).count() / (double) attempts.size();
         Instant now = Instant.now(clock);
+        Intervention intervention = assignment == null || interventionRepository == null ? null
+                : interventionRepository.findById(assignment.interventionId()).orElse(null);
+        StudentKnowledgeState before = null;
+        Double weaknessBefore = null;
+        if (intervention != null && learningStateEngine != null) {
+            var beforeView = learningStateEngine.read(set.studentId(), set.courseId(), assignment.knowledgePointId());
+            before = beforeView.state();
+            weaknessBefore = beforeView.weakKnowledgePoints().stream()
+                    .filter(candidate -> candidate.knowledgePointId().equals(assignment.knowledgePointId()))
+                    .map(com.zhijiao.foundation.student.learning.WeakKnowledgePointCandidate::weaknessScore)
+                    .findFirst().orElse(null);
+            interventionRepository.captureBeforeSnapshot(intervention.interventionId(),
+                    new InterventionRepository.BeforeSnapshot(before.masteryProbability(), before.confidence(),
+                            before.forgettingRisk(), weaknessBefore, before.evidenceCount(), now));
+        }
         repository.markCompleted(practiceSetId, now);
         String stateStatus = "NOT_RECOMPUTED";
         if (!attempts.isEmpty() && learningStateEngine != null && attempts.get(0).demoRunId() != null) {
@@ -109,8 +159,37 @@ public class PracticeService {
                 "outcome-" + UUID.randomUUID().toString().replace("-", ""), practiceSetId, set.studentId(), set.courseId(),
                 accuracy, attempts.size(), attempts.isEmpty() ? "LIVE_DEMO" : attempts.get(0).dataOrigin(), demo.demoRunId(),
                 demo.demoCaseId(), demo.correlationId(), set.sourceVersion(), now, stateStatus));
+        if (assignment != null && intervention != null && interventionOutcomeService != null && before != null) {
+            StudentKnowledgeState after = learningStateEngine.read(set.studentId(), set.courseId(), assignment.knowledgePointId()).state();
+            TransferValidation transfer = transferValidation(practiceSetId);
+            InterventionOutcome interventionOutcome = interventionOutcomeService.record(intervention, assignment, before,
+                    weaknessBefore, after, transfer, accuracy, now);
+            repository.markAssignmentCompleted(practiceSetId);
+            outcome = new PracticeOutcome(interventionOutcome.outcomeId(), outcome.practiceSetId(), outcome.accuracy(), outcome.attemptCount(),
+                    outcome.learningStateStatus(), transfer.result(),
+                    new PracticeOutcome.LearningStateAfter(after.masteryProbability(), after.confidence(), after.forgettingRisk(), after.evidenceCount()),
+                    interventionOutcome.outcomeId());
+        }
         if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return outcome;
+    }
+
+    private InterventionAssignment findAssignment(String practiceSetId) {
+        return interventionRepository == null ? null : interventionRepository.findAssignmentByPracticeSet(practiceSetId).orElse(null);
+    }
+
+    private PracticeOutcome withInterventionOutcome(PracticeOutcome base, InterventionOutcome outcome) {
+        return new PracticeOutcome(outcome.outcomeId(), base.practiceSetId(), base.accuracy(), base.attemptCount(),
+                "UPDATED", outcome.transferValidation(),
+                new PracticeOutcome.LearningStateAfter(outcome.masteryAfter(), outcome.confidenceAfter(),
+                        outcome.forgettingRiskAfter(), outcome.evidenceCountAfter()), outcome.outcomeId());
+    }
+
+    private TransferValidation transferValidation(String practiceSetId) {
+        int attempts = repository.countTransferAttempts(practiceSetId);
+        int correct = repository.countCorrectTransferAttempts(practiceSetId);
+        String result = attempts == 0 ? "NOT_RUN" : attempts == correct ? "PASS" : "FAIL";
+        return new TransferValidation(result, attempts, correct);
     }
 
     private PracticeAttemptResult replayOrConflict(PracticeRepository.AttemptRow existing, String answer,
@@ -151,7 +230,7 @@ public class PracticeService {
                 "attempt-" + UUID.randomUUID().toString().replace("-", ""), set.practiceSetId(), Instant.now(clock),
                 set.studentId(), set.courseId(), set.classId(), question.knowledgePointId(), question.questionId(),
                 set.source(), difficultyLabel(question.difficulty()), correct, durationSeconds, durationSeconds * 1000, index,
-                answer, set.sourceVersion(), set.sourceVersion(), demo, set.coachSessionId(), idempotencyKey);
+                answer, set.sourceVersion(), demo.baselineVersion(), demo, set.coachSessionId(), idempotencyKey);
     }
 
     private PracticeAttemptResult result(PracticeRepository.AttemptRow attempt, InternalQuestion question) {

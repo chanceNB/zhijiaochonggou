@@ -42,6 +42,51 @@ public class PracticeRepository {
                 """, (rs, rowNum) -> mapSet(rs), practiceSetId).stream().findFirst();
     }
 
+    public int questionCount(String practiceSetId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from app.practice_questions where practice_set_id = ?", Integer.class, practiceSetId);
+        return count == null ? 0 : count;
+    }
+
+    public java.util.Map<String, String> validationRoles(String practiceSetId) {
+        return jdbcTemplate.query("""
+                select question_id, validation_role from app.practice_questions
+                where practice_set_id = ?
+                """, (rs, rowNum) -> java.util.Map.entry(rs.getString("question_id"), rs.getString("validation_role")),
+                practiceSetId).stream().collect(java.util.stream.Collectors.toMap(java.util.Map.Entry::getKey,
+                java.util.Map.Entry::getValue));
+    }
+
+    public int countTransferAttempts(String practiceSetId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from app.practice_attempts a
+                join app.practice_questions q on q.practice_set_id = a.practice_set_id
+                    and q.question_id = a.question_id
+                where a.practice_set_id = ? and q.validation_role = 'TRANSFER'
+                """, Integer.class, practiceSetId);
+        return count == null ? 0 : count;
+    }
+
+    public int countCorrectTransferAttempts(String practiceSetId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from app.practice_attempts a
+                join app.practice_questions q on q.practice_set_id = a.practice_set_id
+                    and q.question_id = a.question_id
+                where a.practice_set_id = ? and q.validation_role = 'TRANSFER' and a.correct = true
+                """, Integer.class, practiceSetId);
+        return count == null ? 0 : count;
+    }
+
+    public void bindAttemptToIntervention(String attemptId, String practiceSetId) {
+        jdbcTemplate.update("""
+                update app.practice_attempts a
+                   set intervention_id = ia.intervention_id
+                  from app.intervention_assignments ia
+                 where a.attempt_id = ? and a.practice_set_id = ?
+                   and ia.practice_set_id = ?
+                """, attemptId, practiceSetId, practiceSetId);
+    }
+
     public List<InternalQuestion> findQuestions(String practiceSetId) {
         return jdbcTemplate.query("""
                 select practice_set_id, question_id, parent_question_id, knowledge_point_id, question_type,
@@ -128,6 +173,22 @@ public class PracticeRepository {
         emit(updated, "PracticeSet", practiceSetId, "PRACTICE_SET_COMPLETED", completedAt, "unknown", "LIVE_DEMO", null, null, null);
     }
 
+    public void markAssignmentInProgress(String practiceSetId) {
+        jdbcTemplate.update("""
+                update app.intervention_assignments
+                   set status = 'IN_PROGRESS'
+                 where practice_set_id = ? and status = 'PENDING_STUDENT'
+                """, practiceSetId);
+    }
+
+    public void markAssignmentCompleted(String practiceSetId) {
+        jdbcTemplate.update("""
+                update app.intervention_assignments
+                   set status = 'COMPLETED'
+                 where practice_set_id = ? and status <> 'COMPLETED'
+                """, practiceSetId);
+    }
+
     public PracticeOutcome insertOutcome(PracticeOutcomeData outcome) {
         int inserted = jdbcTemplate.update("""
                 insert into app.practice_outcomes
@@ -184,12 +245,12 @@ public class PracticeRepository {
                     insert into app.practice_questions
                         (practice_set_id, question_id, parent_question_id, knowledge_point_id, question_type,
                          stem, options, correct_answer, explanation, difficulty, generation_reason,
-                         source_version, created_at)
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         validation_role, source_version, created_at)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, set.practiceSetId(), question.questionId(), question.parentQuestionId(), question.knowledgePointId(),
                     question.questionType(), question.stem(), write(question.options()), question.correctAnswer(), question.explanation(),
                     question.difficulty(), set.source().equals("AI_COACH_SIMILAR") ? "SIMILAR_PRACTICE" : "ACTIVE_DIAGNOSIS",
-                    set.sourceVersion(), timestamp(question.createdAt()));
+                    "DIAGNOSTIC", set.sourceVersion(), timestamp(question.createdAt()));
         }
     }
 
@@ -206,9 +267,9 @@ public class PracticeRepository {
                     insert into app.practice_questions
                         (practice_set_id, question_id, parent_question_id, knowledge_point_id, question_type,
                          stem, options, correct_answer, explanation, diagnostic_target, difficulty,
-                         generation_reason, model_provider, model_version, prompt_version, citations,
+                         validation_role, generation_reason, model_provider, model_version, prompt_version, citations,
                          source_version, created_at)
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SIMILAR_PRACTICE', ?, ?, ?, ?, ?, ?)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DIAGNOSTIC', 'SIMILAR_PRACTICE', ?, ?, ?, ?, ?, ?)
                     """, set.practiceSetId(), question.questionId(), question.parentQuestionId(), question.knowledgePointId(),
                     question.questionType(), question.stem(), write(question.options()), question.correctAnswer(), question.explanation(),
                     write(question.diagnosticTarget()), question.difficulty(), question.modelProvider(), question.modelVersion(),

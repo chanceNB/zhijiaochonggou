@@ -25,14 +25,17 @@ public class TeacherInterventionController {
     private final AnalysisRecommendationPort recommendationPort;
     private final AnalysisRecommendationService recommendationService;
     private final InterventionService interventionService;
+    private final InterventionOutcomeService interventionOutcomeService;
     private final Clock clock;
 
     public TeacherInterventionController(AnalysisRecommendationPort recommendationPort,
                                          AnalysisRecommendationService recommendationService,
-                                         InterventionService interventionService, Clock clock) {
+                                         InterventionService interventionService,
+                                         InterventionOutcomeService interventionOutcomeService, Clock clock) {
         this.recommendationPort = recommendationPort;
         this.recommendationService = recommendationService;
         this.interventionService = interventionService;
+        this.interventionOutcomeService = interventionOutcomeService;
         this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
@@ -85,6 +88,12 @@ public class TeacherInterventionController {
     public ApiEnvelope<InterventionResponse> getIntervention(@PathVariable String interventionId,
                                                              HttpServletRequest request) {
         return success(request, response(interventionService.get(interventionId)));
+    }
+
+    @GetMapping("/interventions/{interventionId}/outcome")
+    public ApiEnvelope<InterventionOutcome> getOutcome(@PathVariable String interventionId,
+                                                       HttpServletRequest request) {
+        return success(request, interventionOutcomeService.getByIntervention(interventionId));
     }
 
     private InterventionResponse response(Intervention intervention) {
@@ -168,11 +177,13 @@ public class TeacherInterventionController {
 
     public record AssignmentResponse(String assignmentId, String interventionId, String practiceSetId,
                                      String studentId, String courseId, String classId, String knowledgePointId,
-                                     String status, Instant dueAt, Instant createdAt) {
+                                     String status, Instant dueAt, Instant createdAt, String demoRunId,
+                                     String demoCaseId, String correlationId, String sourceVersion) {
         static AssignmentResponse from(InterventionAssignment assignment) {
             return new AssignmentResponse(assignment.assignmentId(), assignment.interventionId(), assignment.practiceSetId(),
                     assignment.studentId(), assignment.courseId(), assignment.classId(), assignment.knowledgePointId(),
-                    assignment.status(), assignment.dueAt(), assignment.createdAt());
+                    assignment.status(), assignment.dueAt(), assignment.createdAt(), assignment.demoRunId(),
+                    assignment.demoCaseId(), assignment.correlationId(), assignment.sourceVersion());
         }
     }
 }

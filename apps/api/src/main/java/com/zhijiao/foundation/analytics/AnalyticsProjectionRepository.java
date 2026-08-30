@@ -28,6 +28,7 @@ public class AnalyticsProjectionRepository {
         int wrongBookRows = projectWrongBook(observedAt);
         projectDemoRuns();
         projectInterventions(observedAt);
+        projectInterventionOutcomes(observedAt);
         refreshFreshness(observedAt);
         return new AnalyticsProjectionResult(dimensionRows, learningRows, attemptRows, wrongBookRows, observedAt);
     }
@@ -266,6 +267,25 @@ public class AnalyticsProjectionRepository {
                 """, timestamp(observedAt));
     }
 
+    private void projectInterventionOutcomes(Instant observedAt) {
+        jdbcTemplate.update("""
+                insert into smartbi_exchange.sb_fact_intervention_outcome
+                    (event_id, intervention_id, assignment_id, practice_set_id, student_id, course_id, class_id,
+                     knowledge_point_id, transfer_validation, predicted_lift, prediction_low, prediction_high,
+                     actual_lift, prediction_deviation, practice_accuracy_after, mastery_before, mastery_after,
+                     confidence_before, confidence_after, forgetting_risk_before, forgetting_risk_after,
+                     evidence_count_before, evidence_count_after, event_time, data_origin, demo_run_id, demo_case_id,
+                     correlation_id, source_version, ingested_at)
+                select 'intervention-outcome:' || outcome_id, intervention_id, assignment_id, practice_set_id,
+                       student_id, course_id, class_id, knowledge_point_id, transfer_validation, predicted_lift,
+                       prediction_low, prediction_high, actual_lift, prediction_deviation, practice_accuracy_after,
+                       mastery_before, mastery_after, confidence_before, confidence_after, forgetting_risk_before,
+                       forgetting_risk_after, evidence_count_before, evidence_count_after, completed_at, data_origin,
+                       demo_run_id, demo_case_id, correlation_id, source_version, ?
+                from app.intervention_outcomes
+                """, timestamp(observedAt));
+    }
+
     private void refreshFreshness(Instant observedAt) {
         for (AnalyticsDataset dataset : catalog()) {
             String sourceTable = switch (dataset.datasetKey()) {
@@ -274,7 +294,7 @@ public class AnalyticsProjectionRepository {
                 case "sb_dim_student" -> "app.students";
                 case "sb_dim_knowledge_point" -> "app.knowledge_points";
                 case "sb_fact_learning_state", "sb_fact_practice_attempt", "sb_fact_wrong_book", "sb_demo_run_state",
-                     "sb_fact_intervention" -> dataset.objectName();
+                     "sb_fact_intervention", "sb_fact_intervention_outcome" -> dataset.objectName();
                 default -> null;
             };
             String timeColumn = switch (dataset.datasetKey()) {
@@ -284,6 +304,7 @@ public class AnalyticsProjectionRepository {
                 case "sb_fact_wrong_book" -> "added_at";
                 case "sb_demo_run_state" -> "started_at";
                 case "sb_fact_intervention" -> "event_time";
+                case "sb_fact_intervention_outcome" -> "event_time";
                 default -> null;
             };
             Instant latest = sourceTable == null ? null : nullableInstant(jdbcTemplate.queryForObject(

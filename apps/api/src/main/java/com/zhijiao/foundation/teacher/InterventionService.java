@@ -104,7 +104,8 @@ public class InterventionService {
         repository.insertPracticeSet(practiceSetId, current, now);
         repository.insertAssignment(new InterventionAssignment(assignmentId, interventionId, practiceSetId,
                 current.studentId(), current.courseId(), current.classId(), current.knowledgePointId(),
-                "PENDING_STUDENT", dueAt, now));
+                "PENDING_STUDENT", dueAt, now, current.demoRunId(), current.demoCaseId(), current.correlationId(),
+                current.sourceVersion()));
         Intervention updated = get(interventionId);
         appendEvent(updated, "INTERVENTION_COMMITTED", now);
         refreshProjection();

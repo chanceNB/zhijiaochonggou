@@ -109,6 +109,9 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 | nextAction | 下一行动 | Object | 必返 |
 | teacherAssignment | 教师任务 | Object/null | 可空 |
 | learningState | 学习状态 | Object | 必返 |
+| demoCaseId | 演示案例 | String/null | 必返 |
+
+`teacherAssignment` 为当前 COMMITTED 教师任务时包含 `assignmentId`、`interventionId`、`practiceSetId`、`studentId`、`courseId`、`classId`、`knowledgePointId`、`status`、`dueAt`、`createdAt`、`demoRunId`、`demoCaseId`、`correlationId`、`sourceVersion`。`status` 为 `PENDING_STUDENT`、`IN_PROGRESS` 或 `COMPLETED`。`learningState` 由权威 A 学习状态读取，包含 `knowledgePointId`、`mastery`、`confidence`、`forgettingRisk`、`evidenceCount`。
 
 返回示例：
 ```json
@@ -496,8 +499,9 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 |---|---|---|---|
 | outcomeId | 结果ID | String | 必返 |
 | accuracy | 正确率 | Number | 必返 |
-| learningStateAfter | 更新后学习状态 | Object | 必返 |
+| learningStateAfter | 更新后学习状态 | Object/null | 干预任务必返，普通练习可空 |
 | transferValidation | 迁移验证 | Enum/null | 可空 |
+| interventionOutcomeId | B 域干预结果ID | String/null | 干预任务必返，普通练习可空 |
 
 返回示例：
 ```json
@@ -513,7 +517,8 @@ Base URL：`http://localhost:8080/api/v1`（本地）
       "confidence": 0.68,
       "forgettingRisk": 0.63
     },
-    "transferValidation": null
+    "transferValidation": "PASS",
+    "interventionOutcomeId": "outcome-001"
   },
   "timestamp": "2026-08-29T08:00:00Z"
 }
@@ -666,6 +671,8 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 | completedTasks | 完成任务 | Integer | 必返 |
 | repairedMisconceptions | 修复误概念 | Integer | 必返 |
 | latestIntervention | 最近干预 | Object/null | 可空 |
+
+`latestIntervention` 在存在已完成教师干预时包含 `strategyCode`、`masteryBefore`、`masteryAfter`、`transferValidation`、`predictedLift`、`actualLift`、`predictionDeviation`、干预前后 `confidence`、`forgettingRisk` 与 `evidenceCount`。
 
 返回示例：
 ```json
@@ -1108,6 +1115,14 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 | actualLift | 实际提升 | Number | 必返 |
 | predictionDeviation | 偏差 | Number | 必返 |
 | transferValidation | 迁移验证 | Enum | 必返 |
+| assignmentId | 任务ID | String | 必返 |
+| practiceSetId | 练习集ID | String | 必返 |
+| masteryBefore / masteryAfter | 干预前后掌握度 | Number | 必返 |
+| confidenceBefore / confidenceAfter | 干预前后置信度 | Number | 必返 |
+| forgettingRiskBefore / forgettingRiskAfter | 干预前后遗忘风险 | Number | 必返 |
+| evidenceCountBefore / evidenceCountAfter | 干预前后证据数 | Integer | 必返 |
+| practiceAccuracyAfter | 干预后练习正确率 | Number | 必返 |
+| demoRunId / demoCaseId / correlationId | 全链路追踪 | String/null | 必返 |
 
 返回示例：
 ```json

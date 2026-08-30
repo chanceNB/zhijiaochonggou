@@ -50,7 +50,9 @@ public class PracticeController {
     }
 
     @PostMapping("/practice-sets/{practiceSetId}/complete")
-    public ApiEnvelope<PracticeOutcome> complete(@PathVariable String practiceSetId, HttpServletRequest request) {
+    public ApiEnvelope<PracticeOutcome> complete(@PathVariable String practiceSetId,
+                                                 @RequestHeader("Idempotency-Key") String idempotencyKey,
+                                                 HttpServletRequest request) {
         return success(request, practiceService.complete(practiceSetId));
     }
 
@@ -67,13 +69,15 @@ public class PracticeController {
                                           String misconceptionCode, boolean canAddWrongBook, boolean canGenerateSimilar) {
     }
 
-    public record PracticeSetResponse(String practiceSetId, String studentId, String courseId, String source,
-                                      String status, String coachSessionId, String demoCaseId,
+    public record PracticeSetResponse(String practiceSetId, String studentId, String courseId, String classId,
+                                      String source, String status, String coachSessionId, String demoRunId,
+                                      String demoCaseId, String correlationId, String sourceVersion,
                                       List<StudentQuestion> questions, List<PracticeAttemptSummary> attempts) {
         static PracticeSetResponse from(PracticeSetView view) {
             PracticeSet set = view.practiceSet();
-            return new PracticeSetResponse(set.practiceSetId(), set.studentId(), set.courseId(), set.source(), set.status(),
-                    set.coachSessionId(), set.demoCaseId(), view.questions(), view.attempts());
+            return new PracticeSetResponse(set.practiceSetId(), set.studentId(), set.courseId(), set.classId(), set.source(),
+                    set.status(), set.coachSessionId(), set.demoRunId(), set.demoCaseId(), set.correlationId(),
+                    set.sourceVersion(), view.questions(), view.attempts());
         }
     }
 }
