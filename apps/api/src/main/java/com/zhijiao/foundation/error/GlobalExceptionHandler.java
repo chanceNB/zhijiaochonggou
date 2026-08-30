@@ -15,6 +15,9 @@ import com.zhijiao.foundation.student.practice.PracticeAttemptNotFoundException;
 import com.zhijiao.foundation.student.practice.PracticeSetNotFoundException;
 import com.zhijiao.foundation.student.practice.WrongBookItemNotFoundException;
 import com.zhijiao.foundation.analytics.AnalyticsExportNotFoundException;
+import com.zhijiao.foundation.teacher.InterventionNotFoundException;
+import com.zhijiao.foundation.teacher.PreconditionFailedException;
+import com.zhijiao.foundation.teacher.RecommendationNotFoundException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -71,7 +74,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({PracticeSetNotFoundException.class, PracticeAttemptNotFoundException.class,
-            WrongBookItemNotFoundException.class, AnalyticsExportNotFoundException.class})
+            WrongBookItemNotFoundException.class, AnalyticsExportNotFoundException.class,
+            RecommendationNotFoundException.class, InterventionNotFoundException.class})
     ResponseEntity<ApiEnvelope<Void>> practiceNotFound(RuntimeException exception, HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
     }
@@ -112,6 +116,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     ResponseEntity<ApiEnvelope<Void>> stateConflict(IllegalStateException exception, HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "STATE_CONFLICT", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    ResponseEntity<ApiEnvelope<Void>> preconditionFailed(PreconditionFailedException exception,
+                                                          HttpServletRequest request) {
+        return response(HttpStatus.PRECONDITION_FAILED, "PRECONDITION_FAILED", exception.getMessage(), null, request);
     }
 
     @ExceptionHandler(Exception.class)

@@ -46,6 +46,12 @@ class OpenApiContractTest {
                     "/student/practice-attempts/{attemptId}/wrong-book",
                     "/student/wrong-book",
                     "/student/wrong-book/{wrongItemId}/review",
+                    "/teacher/analysis-recommendations",
+                    "/teacher/analysis-recommendations/{recommendationId}",
+                    "/teacher/interventions",
+                    "/teacher/interventions/{interventionId}/approve",
+                    "/teacher/interventions/{interventionId}/commit",
+                    "/teacher/interventions/{interventionId}",
                     "/admin/knowledge/documents");
             @SuppressWarnings("unchecked")
             Map<String, Object> schemas = (Map<String, Object>) ((Map<String, Object>) document.get("components")).get("schemas");

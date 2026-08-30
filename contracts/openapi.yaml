@@ -399,6 +399,149 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelopeKnowledgeDocumentListResponse'
+  /teacher/analysis-recommendations:
+    post:
+      operationId: captureAnalysisRecommendation
+      summary: Capture a SmartBI AIChat recommendation manually
+      description: SmartBI AIChat remains a read-only recommendation source; this MANUAL_CAPTURE records the immutable source snapshot.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [studentId, courseId, knowledgePointId, analysisSummary, candidates, source]
+              properties:
+                studentId: {type: string}
+                courseId: {type: string}
+                classId: {type: string}
+                knowledgePointId: {type: string}
+                demoRunId: {type: string}
+                demoCaseId: {type: string}
+                correlationId: {type: string}
+                analysisSummary: {type: string}
+                evidenceRefs:
+                  type: array
+                  items: {type: string}
+                candidates:
+                  type: array
+                  minItems: 3
+                  maxItems: 3
+                  items: {type: object}
+                source: {type: string, enum: [SMARTBI_AICHAT]}
+      responses:
+        '200':
+          description: Captured recommendation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /teacher/analysis-recommendations/{recommendationId}:
+    get:
+      operationId: getAnalysisRecommendation
+      summary: Read an immutable recommendation snapshot
+      parameters:
+        - name: recommendationId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Recommendation snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+  /teacher/interventions:
+    post:
+      operationId: proposeIntervention
+      summary: Propose a teacher-confirmed intervention
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [recommendationId, strategyCode, teacherRationale]}
+      responses:
+        '200':
+          description: Proposed intervention with B-owned effect estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '422':
+          $ref: '#/components/responses/DomainRuleViolation'
+  /teacher/interventions/{interventionId}/approve:
+    post:
+      operationId: approveIntervention
+      summary: Approve a proposed intervention
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+        - name: interventionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Approved intervention
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /teacher/interventions/{interventionId}/commit:
+    post:
+      operationId: commitIntervention
+      summary: Commit an approved intervention and create a student assignment
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+        - name: interventionId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dueAt: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Committed intervention and assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /teacher/interventions/{interventionId}:
+    get:
+      operationId: getIntervention
+      summary: Read intervention lifecycle and assignment
+      parameters:
+        - name: interventionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Intervention details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
   /demo/runs:
     post:
       operationId: createDemoRun
@@ -1298,6 +1441,13 @@ components:
       schema:
         type: string
         minLength: 1
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
     DemoRunId:
       name: demoRunId
       in: path
@@ -1343,6 +1493,12 @@ components:
             $ref: '#/components/schemas/ApiEnvelope'
     StateConflict:
       description: Invalid state transition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiEnvelope'
+    PreconditionFailed:
+      description: If-Match version mismatch
       content:
         application/json:
           schema:

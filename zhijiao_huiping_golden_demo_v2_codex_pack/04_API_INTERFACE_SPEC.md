@@ -846,6 +846,7 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 | studentId | 学生ID | String | 必填 |
 | knowledgePointId | 知识点ID | String | 必填 |
 | analysisSummary | 分析摘要 | String | 必填 |
+| evidenceRefs | 证据引用 | Array<String> | 可选 |
 | candidates | 三个候选方案 | Array | 固定3 |
 | source | 来源 | Enum | SMARTBI_AICHAT |
 
@@ -903,6 +904,20 @@ Base URL：`http://localhost:8080/api/v1`（本地）
 ```
 
 > 注意：不得宣称 SmartBI 已自动回调；挑战杯租户 API 能力未验证前由教师人工确认录入/选择。
+##### 2.5.3.4a 查询 SmartBI AIChat 建议
+**功能描述**：读取 MANUAL_CAPTURE 的不可变候选快照，供教师审核选择；不会返回已批准或已下发的业务状态。
+**接口方式**：HTTP GET
+**接口地址**：`/api/v1/teacher/analysis-recommendations/{recommendationId}`
+
+返回字段：
+
+| 参数名 | 中文描述 | 类型 | 约束 |
+|---|---|---|---|
+| candidates | 候选方案快照 | Array | 固定3，不可变 |
+| source | 来源 | Enum | SMARTBI_AICHAT |
+| captureMode | 捕获方式 | Enum | MANUAL |
+| status | 状态 | Enum | PENDING_TEACHER_REVIEW |
+
 ##### 2.5.3.5 创建正式干预
 **功能描述**：教师从 Recommendation 中选择一个 strategy；B 运行 EffectEstimator 后创建 PROPOSED Intervention。  
 **接口方式**：HTTP POST  
