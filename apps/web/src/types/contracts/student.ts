@@ -15,10 +15,12 @@ export const TeacherAssignmentSchema = z.object({
   demoCaseId: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
   sourceVersion: z.string().nullable().optional(),
+  knowledgePointName: z.string().nullable().optional(),
 })
 
 export const LearningStateSummarySchema = z.object({
   knowledgePointId: z.string(),
+  knowledgePointName: z.string().nullable().optional(),
   mastery: z.number().min(0).max(1),
   confidence: z.number().min(0).max(1),
   forgettingRisk: z.number().min(0).max(1),
@@ -29,6 +31,7 @@ export const NextActionSchema = z.object({
   type: z.string(),
   title: z.string(),
   knowledgePointId: z.string(),
+  knowledgePointName: z.string().nullable().optional(),
   estimatedMinutes: z.number().int().nonnegative(),
 })
 
@@ -103,10 +106,129 @@ export const DiagnosticSetResponseSchema = z.object({
   ragStatus: z.enum(['INDEXED', 'EMPTY', 'DEGRADED']),
 })
 
+export const QuestionOptionSchema = z.object({
+  optionId: z.string(),
+  text: z.string(),
+})
+
+export const StudentQuestionSchema = z.object({
+  questionId: z.string(),
+  knowledgePointId: z.string(),
+  knowledgePointName: z.string().nullable().optional(),
+  questionType: z.string(),
+  stem: z.string(),
+  options: z.array(QuestionOptionSchema),
+  difficulty: z.number(),
+})
+
+export const PracticeAttemptSummarySchema = z.object({
+  attemptId: z.string(),
+  questionId: z.string(),
+  selectedAnswer: z.string(),
+  correct: z.boolean(),
+  responseTimeMs: z.number().int().nonnegative(),
+  attemptTime: z.string().datetime({ offset: true }),
+})
+
+export const PracticeSetResponseSchema = z.object({
+  practiceSetId: z.string(),
+  studentId: z.string(),
+  courseId: z.string(),
+  classId: z.string(),
+  source: z.string(),
+  status: z.string(),
+  coachSessionId: z.string().nullable().optional(),
+  demoRunId: z.string().nullable().optional(),
+  demoCaseId: z.string().nullable().optional(),
+  correlationId: z.string().nullable().optional(),
+  sourceVersion: z.string().nullable().optional(),
+  questions: z.array(StudentQuestionSchema),
+  attempts: z.array(PracticeAttemptSummarySchema),
+})
+
+export const PracticeAttemptResponseSchema = z.object({
+  attemptId: z.string(),
+  correct: z.boolean(),
+  correctAnswer: z.string(),
+  explanation: z.string(),
+  misconceptionCode: z.string().nullable().optional(),
+  canAddWrongBook: z.boolean(),
+  canGenerateSimilar: z.boolean(),
+})
+
+export const LearningStateAfterSchema = z.object({
+  mastery: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1),
+  forgettingRisk: z.number().min(0).max(1),
+  evidenceCount: z.number().int().nonnegative(),
+})
+
+export const PracticeOutcomeSchema = z.object({
+  outcomeId: z.string(),
+  practiceSetId: z.string(),
+  accuracy: z.number().min(0).max(1),
+  attemptCount: z.number().int().nonnegative(),
+  learningStateStatus: z.string(),
+  transferValidation: z.string().nullable().optional(),
+  learningStateAfter: LearningStateAfterSchema.nullable().optional(),
+  interventionOutcomeId: z.string().nullable().optional(),
+})
+
+export const WrongBookItemSchema = z.object({
+  wrongItemId: z.string(),
+  studentId: z.string(),
+  courseId: z.string(),
+  classId: z.string(),
+  questionId: z.string(),
+  sourceAttemptId: z.string(),
+  knowledgePointId: z.string(),
+  knowledgePointName: z.string().nullable().optional(),
+  questionStem: z.string().nullable().optional(),
+  questionSummary: z.string().nullable().optional(),
+  reasonDisplayName: z.string().nullable().optional(),
+  reason: z.string().nullable().optional(),
+  status: z.string(),
+  reviewCount: z.number().int().nonnegative(),
+  addedAt: z.string().datetime({ offset: true }),
+  repairedAt: z.string().datetime({ offset: true }).nullable().optional(),
+  dataOrigin: z.string(),
+  demoRunId: z.string().nullable().optional(),
+  demoCaseId: z.string().nullable().optional(),
+  correlationId: z.string().nullable().optional(),
+  sourceVersion: z.string().nullable().optional(),
+})
+
+export const WrongBookPageSchema = z.object({
+  items: z.array(WrongBookItemSchema),
+  page: z.number().int(),
+  size: z.number().int(),
+  total: z.number().int().nonnegative(),
+})
+
+export const WrongBookReviewResponseSchema = z.object({
+  correct: z.boolean(),
+  status: z.string(),
+  reviewCount: z.number().int().nonnegative(),
+})
+
+export const SimilarSetResponseSchema = z.object({
+  practiceSetId: z.string(),
+  questions: z.array(StudentQuestionSchema),
+})
+
 export type TodayResponseDto = z.infer<typeof TodayResponseSchema>
 export type CoachSessionResponseDto = z.infer<typeof CoachSessionResponseSchema>
 export type CoachMessageResponseDto = z.infer<typeof CoachMessageResponseSchema>
 export type DiagnosticSetResponseDto = z.infer<typeof DiagnosticSetResponseSchema>
+export type StudentQuestionDto = z.infer<typeof StudentQuestionSchema>
+export type PracticeAttemptSummaryDto = z.infer<typeof PracticeAttemptSummarySchema>
+export type PracticeSetResponseDto = z.infer<typeof PracticeSetResponseSchema>
+export type PracticeAttemptResponseDto = z.infer<typeof PracticeAttemptResponseSchema>
+export type PracticeOutcomeDto = z.infer<typeof PracticeOutcomeSchema>
+export type WrongBookItemDto = z.infer<typeof WrongBookItemSchema>
+export type WrongBookPageDto = z.infer<typeof WrongBookPageSchema>
+export type WrongBookReviewResponseDto = z.infer<typeof WrongBookReviewResponseSchema>
+export type SimilarSetResponseDto = z.infer<typeof SimilarSetResponseSchema>
 
 export type StudentUiState =
   | 'INITIAL'
