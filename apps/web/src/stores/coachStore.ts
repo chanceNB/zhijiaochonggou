@@ -5,6 +5,7 @@ import {
   createDiagnosticSet,
   getCoachSession,
   sendCoachMessage,
+  generateSimilarQuestions,
 } from '@/api/student/coach'
 import { localMessageId, toAssistantMessageVm, toCoachSessionVm } from '@/adapters/student/coach'
 import type {
@@ -25,12 +26,17 @@ export const useCoachStore = defineStore('coach', {
     diagnosticError: null as string | null,
     lastActions: [] as Array<{ type: string; label: string }>,
     lastMessage: null as CoachMessageVm | null,
+    currentPracticeSetId: null as string | null,
+    practiceContext: null as { practiceSetId: string; questionId: string; attemptId: string; selectedAnswer: string } | null,
+    similarState: 'INITIAL' as StudentUiState,
+    similarError: null as string | null,
   }),
   getters: {
     activeSessionId: (store) => store.session?.sessionId ?? null,
     messages: (store) => store.session?.messages ?? [],
     context: (store) => store.session?.context ?? null,
     canStartDiagnostic: (store) => Boolean(store.session?.sessionId && store.session.knowledgePointId),
+    hasPracticeSet: (store) => Boolean(store.currentPracticeSetId),
   },
   actions: {
     clearError() {
@@ -128,6 +134,7 @@ export const useCoachStore = defineStore('coach', {
       try {
         const result = await createDiagnosticSet(this.session.sessionId, this.session.knowledgePointId)
         this.diagnosticState = 'SUCCESS'
+        this.currentPracticeSetId = result.practiceSetId
         return result.practiceSetId
       } catch (error) {
         const apiError = toApiError(error)
@@ -135,6 +142,29 @@ export const useCoachStore = defineStore('coach', {
         this.diagnosticState = apiError.code === 'AI_UPSTREAM_ERROR' ? 'DEGRADED' : 'ERROR'
         return null
       }
+    },
+    async generateSimilar(sourceAttemptId: string, count = 1) {
+      if (!this.session?.sessionId) return null
+      this.similarState = 'SUBMITTING'
+      this.similarError = null
+      try {
+        const result = await generateSimilarQuestions({ sessionId: this.session.sessionId, sourceAttemptId, count })
+        this.similarState = 'SUCCESS'
+        this.currentPracticeSetId = result.practiceSetId
+        return result.practiceSetId
+      } catch (error) {
+        const apiError = toApiError(error)
+        this.similarError = apiError.message || '类似题暂时无法生成'
+        this.similarState = 'ERROR'
+        return null
+      }
+    },
+    setPracticeSet(practiceSetId: string | null) {
+      this.currentPracticeSetId = practiceSetId
+    },
+    setPracticeContext(context: { practiceSetId: string; questionId: string; attemptId: string; selectedAnswer: string }) {
+      this.practiceContext = context
+      this.currentPracticeSetId = context.practiceSetId
     },
   },
 })

@@ -5,6 +5,10 @@ import FoundationView from '@/views/FoundationView.vue'
 import RoutePlaceholderView from '@/views/RoutePlaceholderView.vue'
 import StudentAiCoachPage from '@/views/StudentAiCoachPage.vue'
 import StudentTodayPage from '@/views/StudentTodayPage.vue'
+import StudentPracticeHubPage from '@/views/StudentPracticeHubPage.vue'
+import StudentPracticeRunnerPage from '@/views/StudentPracticeRunnerPage.vue'
+import StudentPracticeResultPage from '@/views/StudentPracticeResultPage.vue'
+import StudentWrongBookPage from '@/views/StudentWrongBookPage.vue'
 
 const studentPage = (title: string, subtitle = '学生学习空间') => ({
   component: RoutePlaceholderView,
@@ -32,10 +36,10 @@ const routes: RouteRecordRaw[] = [
       { path: 'today', name: 'student-today', component: StudentTodayPage, meta: { role: 'student', title: '今日学习', subtitle: '查看当前学习状态与下一步行动' } },
       { path: 'ai-coach', name: 'student-ai-coach', component: StudentAiCoachPage, meta: { role: 'student', title: 'AI学习教练', subtitle: '与你一起梳理学习问题' } },
       { path: 'ai-coach/:sessionId', name: 'student-ai-coach-session', component: StudentAiCoachPage, meta: { role: 'student', title: 'AI学习教练', subtitle: '恢复当前学习会话' } },
-      { path: 'practice', name: 'student-practice-hub', ...studentPage('定向练习', '从当前学习上下文进入练习') },
-      { path: 'practice/:practiceSetId/result', name: 'student-practice-result', ...studentPage('练习结果', '查看本次练习的真实结果') },
-      { path: 'practice/:practiceSetId', name: 'student-practice-runner', ...studentPage('定向练习', '专注完成当前练习') },
-      { path: 'wrong-book', name: 'student-wrong-book', ...studentPage('错题本', '复习需要再次理解的题目') },
+      { path: 'practice', name: 'student-practice-hub', component: StudentPracticeHubPage, meta: { role: 'student', title: '定向练习', subtitle: '从当前学习上下文进入练习' } },
+      { path: 'practice/:practiceSetId/result', name: 'student-practice-result', component: StudentPracticeResultPage, meta: { role: 'student', title: '练习结果', subtitle: '查看本次练习的真实结果' } },
+      { path: 'practice/:practiceSetId', name: 'student-practice-runner', component: StudentPracticeRunnerPage, meta: { role: 'student', title: '定向练习', subtitle: '专注完成当前练习' } },
+      { path: 'wrong-book', name: 'student-wrong-book', component: StudentWrongBookPage, meta: { role: 'student', title: '错题本', subtitle: '复习需要再次理解的题目' } },
       { path: 'growth', name: 'student-growth', ...studentPage('我的成长', '回顾已经掌握的知识') },
       { path: 'resources', name: 'student-resources', ...studentPage('学习资料', '浏览当前可用的课程资料') },
     ],

@@ -3,9 +3,11 @@ import {
   CoachMessageResponseSchema,
   CoachSessionResponseSchema,
   DiagnosticSetResponseSchema,
+  SimilarSetResponseSchema,
   type CoachMessageResponseDto,
   type CoachSessionResponseDto,
   type DiagnosticSetResponseDto,
+  type SimilarSetResponseDto,
 } from '@/types/contracts/student'
 
 export interface CreateCoachSessionInput {
@@ -54,4 +56,19 @@ export async function createDiagnosticSet(
   )
   const envelope = parseApiEnvelope(response.data)
   return DiagnosticSetResponseSchema.parse(envelope.data)
+}
+
+export async function generateSimilarQuestions(input: {
+  sessionId: string
+  sourceAttemptId: string
+  count?: number
+  idempotencyKey?: string
+}): Promise<SimilarSetResponseDto> {
+  const response = await apiClient.post(
+    `/student/coach/sessions/${encodeURIComponent(input.sessionId)}/similar-questions`,
+    { sourceAttemptId: input.sourceAttemptId, count: input.count ?? 1 },
+    { headers: { 'Idempotency-Key': input.idempotencyKey ?? idempotencyKey('similar-questions') } },
+  )
+  const envelope = parseApiEnvelope(response.data)
+  return SimilarSetResponseSchema.parse(envelope.data)
 }
