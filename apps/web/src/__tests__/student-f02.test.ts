@@ -58,6 +58,7 @@ const wrongBookDisplayDto: WrongBookPageDto = {
   items: [{
     wrongItemId: 'wrong-private', studentId: 'stu-display-only', courseId: 'course-private', classId: 'class-private',
     questionId: 'q-private', sourceAttemptId: 'attempt-private', knowledgePointId: 'kp-private',
+    questionType: 'SINGLE_CHOICE', options: [{ optionId: 'A', text: '相邻' }, { optionId: 'B', text: '连通' }],
     reason: 'Confused BFS and DFS for unweighted shortest path', status: 'TO_REVIEW', reviewCount: 0,
     addedAt: '2026-08-31T00:00:00Z', repairedAt: null, dataOrigin: 'LIVE_DEMO', demoRunId: null,
     demoCaseId: null, correlationId: null, sourceVersion: null,
@@ -95,6 +96,52 @@ describe('F02 student presentation layer', () => {
     expect(rendered).toContain('当前知识点')
     expect(rendered).toContain('知识点辨析还不够清晰')
     expect(rendered).not.toMatch(/stu-|course-|kp-|attempt-|wrong-|q-|Confused BFS/i)
+  })
+
+  it('renders single-choice options, submits the option id, and moves a correct item to mastered', async () => {
+    const initial = {
+      ...wrongBookDisplayDto,
+      items: [{ ...wrongBookDisplayDto.items[0], wrongItemId: 'wrong-review', status: 'TO_REVIEW', reviewCount: 0 }],
+    }
+    const mastered = {
+      ...initial,
+      items: [{ ...initial.items[0], status: 'MASTERED', reviewCount: 1, repairedAt: '2026-08-31T00:00:00Z' }],
+    }
+    const { getWrongBook } = await import('../api/student/wrongBook')
+    vi.mocked(getWrongBook).mockResolvedValueOnce(initial).mockResolvedValueOnce(mastered)
+    vi.mocked(reviewWrongBookItem).mockResolvedValue({ correct: true, status: 'MASTERED', reviewCount: 1 })
+    await router.push('/student/wrong-book')
+    const wrapper = mount(StudentWrongBookPage, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.find('.review-options').exists()).toBe(true)
+    expect(wrapper.text()).toContain('相邻')
+    expect(wrapper.text()).not.toContain('correctAnswer')
+    await wrapper.findAll('.review-option')[0].trigger('click')
+    expect(wrapper.find('.review-option.selected').text()).toContain('相邻')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(reviewWrongBookItem).toHaveBeenCalledWith(expect.objectContaining({ answer: 'A' }))
+    expect(wrapper.text()).toContain('回答正确')
+    expect(wrapper.text()).toContain('本题已掌握')
+    expect(wrapper.findAll('[role="tab"]')[2].attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('uses backend incorrect feedback without client-side grading', async () => {
+    const { getWrongBook } = await import('../api/student/wrongBook')
+    vi.mocked(getWrongBook).mockResolvedValue(wrongBookDisplayDto)
+    vi.mocked(reviewWrongBookItem).mockResolvedValue({ correct: false, status: 'TO_REVIEW', reviewCount: 1 })
+    await router.push('/student/wrong-book')
+    const wrapper = mount(StudentWrongBookPage, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.findAll('.review-option')[1].trigger('click')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(reviewWrongBookItem).toHaveBeenCalledWith(expect.objectContaining({ answer: 'B' }))
+    expect(wrapper.text()).toContain('回答错误')
+    expect(wrapper.text()).toContain('仍需继续复习')
+    expect(wrapper.findAll('[role="tab"]')[0].attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
   })
 
   it('filters the WrongBook by the real mastered status', async () => {
@@ -239,7 +286,7 @@ describe('F02 wrong book and similar question contracts', () => {
   })
 
   it('preserves a wrong-book review idempotency key in the request contract', async () => {
-    vi.mocked(reviewWrongBookItem).mockResolvedValue({ correct: true, status: 'LEARNING', reviewCount: 1 })
+    vi.mocked(reviewWrongBookItem).mockResolvedValue({ correct: true, status: 'MASTERED', reviewCount: 1 })
     await reviewWrongBookItem({ wrongItemId: 'wrong-1', answer: 'A', durationSeconds: 10, idempotencyKey: 'review-key' })
     expect(reviewWrongBookItem).toHaveBeenCalledWith({ wrongItemId: 'wrong-1', answer: 'A', durationSeconds: 10, idempotencyKey: 'review-key' })
   })

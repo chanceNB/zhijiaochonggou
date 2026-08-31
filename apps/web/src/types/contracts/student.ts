@@ -185,6 +185,8 @@ export const WrongBookItemSchema = z.object({
   knowledgePointName: z.string().nullable().optional(),
   questionStem: z.string().nullable().optional(),
   questionSummary: z.string().nullable().optional(),
+  questionType: z.string().nullable().optional(),
+  options: z.array(QuestionOptionSchema).optional(),
   reasonDisplayName: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
   status: z.string(),

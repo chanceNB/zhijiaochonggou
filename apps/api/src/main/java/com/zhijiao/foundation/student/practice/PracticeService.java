@@ -224,7 +224,7 @@ public class PracticeService {
 
     private PracticeRepository.AttemptRow grade(PracticeSet set, InternalQuestion question, String answer,
                                                 int durationSeconds, String idempotencyKey, PracticeRepository.DemoContext demo) {
-        boolean correct = question.correctAnswer().equals(answer);
+        boolean correct = AnswerEvaluator.evaluate(question, answer);
         int index = repository.nextAttemptIndex(set.studentId(), set.courseId(), question.knowledgePointId());
         return PracticeRepository.AttemptRow.newLive(
                 "attempt-" + UUID.randomUUID().toString().replace("-", ""), set.practiceSetId(), Instant.now(clock),

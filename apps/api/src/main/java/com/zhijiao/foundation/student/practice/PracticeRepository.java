@@ -283,6 +283,7 @@ public class PracticeRepository {
                        w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
                        w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
                        k.name as knowledge_point_name, q.stem as question_summary,
+                       q.question_type, q.options as question_options,
                        cast(null as text) as reason_display_name
                 from app.wrong_book_items w
                 left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
@@ -316,6 +317,7 @@ public class PracticeRepository {
                        w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
                        w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
                        k.name as knowledge_point_name, q.stem as question_summary,
+                       q.question_type, q.options as question_options,
                        cast(null as text) as reason_display_name
                 from app.wrong_book_items w
                 left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
@@ -374,6 +376,7 @@ public class PracticeRepository {
                        w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
                        w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
                        k.name as knowledge_point_name, q.stem as question_summary,
+                       q.question_type, q.options as question_options,
                        cast(null as text) as reason_display_name
                 from app.wrong_book_items w
                 left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
@@ -395,7 +398,7 @@ public class PracticeRepository {
     }
 
     public WrongBookItem updateWrongBookReview(WrongBookItem item, boolean correct, Instant reviewedAt) {
-        String status = correct ? (item.reviewCount() + 1 >= 1 ? "LEARNING" : "TO_REVIEW") : "TO_REVIEW";
+        String status = correct ? "MASTERED" : "TO_REVIEW";
         Instant repairedAt = correct ? reviewedAt : item.repairedAt();
         int updated = jdbcTemplate.update("update app.wrong_book_items set status = ?, review_count = ?, repaired_at = ? where wrong_item_id = ?",
                 status, item.reviewCount() + 1, repairedAt == null ? null : timestamp(repairedAt), item.wrongItemId());
@@ -404,7 +407,7 @@ public class PracticeRepository {
         return new WrongBookItem(item.wrongItemId(), item.studentId(), item.courseId(), item.classId(), item.questionId(),
                 item.sourceAttemptId(), item.knowledgePointId(), item.reason(), status, item.reviewCount() + 1,
                 item.addedAt(), repairedAt, item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion(),
-                item.knowledgePointName(), item.questionSummary(), item.reasonDisplayName());
+                item.knowledgePointName(), item.questionSummary(), item.reasonDisplayName(), item.questionType(), item.options());
     }
 
     private PracticeSet mapSet(ResultSet rs) throws SQLException {
@@ -435,7 +438,8 @@ public class PracticeRepository {
                 rs.getString("reason"), rs.getString("status"), rs.getInt("review_count"), toInstant(rs.getObject("added_at")),
                 nullableInstant(rs.getObject("repaired_at")), rs.getString("data_origin"), rs.getString("demo_run_id"),
                 rs.getString("demo_case_id"), rs.getString("correlation_id"), rs.getString("source_version"),
-                rs.getString("knowledge_point_name"), rs.getString("question_summary"), rs.getString("reason_display_name"));
+                rs.getString("knowledge_point_name"), rs.getString("question_summary"), rs.getString("reason_display_name"),
+                rs.getString("question_type"), read(rs.getString("question_options")));
     }
 
     private String write(Object value) {
@@ -444,6 +448,7 @@ public class PracticeRepository {
     }
 
     private List<QuestionOptionView> read(String value) {
+        if (value == null || value.isBlank()) return List.of();
         try { return objectMapper.readValue(value, new TypeReference<>() {}); }
         catch (JsonProcessingException exception) { throw new IllegalStateException("Cannot deserialize practice question", exception); }
     }

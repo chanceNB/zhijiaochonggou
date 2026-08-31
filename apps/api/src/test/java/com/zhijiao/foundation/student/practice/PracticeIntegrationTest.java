@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -109,6 +110,10 @@ class PracticeIntegrationTest {
                 .andExpect(jsonPath("$.data.status", equalTo("TO_REVIEW")))
                 .andExpect(jsonPath("$.data.sourceAttemptId", equalTo(attemptId)))
                 .andExpect(jsonPath("$.data.questionId", equalTo(questionId)))
+                .andExpect(jsonPath("$.data.questionType", equalTo("SINGLE_CHOICE")))
+                .andExpect(jsonPath("$.data.options[0].optionId", equalTo("A")))
+                .andExpect(jsonPath("$.data.options[0].text", equalTo("队列")))
+                .andExpect(content().string(not(containsString("correctAnswer"))))
                 .andExpect(jsonPath("$.data.questionSummary", equalTo("BFS uses which structure?")))
                 .andExpect(jsonPath("$.data.knowledgePointName", equalTo("图遍历 BFS / DFS")))
                 .andReturn().getResponse().getContentAsString();
@@ -127,8 +132,15 @@ class PracticeIntegrationTest {
                         .contentType("application/json").content("{\"answer\":\"A\",\"durationSeconds\":10}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.correct", equalTo(true)))
-                .andExpect(jsonPath("$.data.status", equalTo("LEARNING")))
+                .andExpect(jsonPath("$.data.status", equalTo("MASTERED")))
                 .andExpect(jsonPath("$.data.reviewCount", equalTo(1)));
+        mockMvc.perform(get("/api/v1/student/wrong-book?status=MASTERED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].wrongItemId", equalTo(wrongItemId)))
+                .andExpect(jsonPath("$.data.items[0].status", equalTo("MASTERED")))
+                .andExpect(jsonPath("$.data.items[0].reviewCount", equalTo(1)))
+                .andExpect(jsonPath("$.data.items[0].repairedAt", notNullValue()));
 
         mockMvc.perform(post("/api/v1/student/practice-sets/{id}/attempts", setId)
                         .header("Idempotency-Key", "t04-attempt")

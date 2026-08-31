@@ -71,7 +71,7 @@ public class WrongBookService {
         ensureWritableDemo(sourceAttempt);
         InternalQuestion question = repository.findQuestion(sourceAttempt.practiceSetId(), item.questionId())
                 .orElseThrow(() -> new DomainRuleViolationException("Question is unavailable for review"));
-        boolean correct = question.correctAnswer().equals(answer.trim());
+        boolean correct = AnswerEvaluator.evaluate(question, answer);
         WrongBookItem updated = repository.updateWrongBookReview(item, correct, Instant.now(clock));
         if (analyticsProjectionService != null) analyticsProjectionService.refresh();
         return new WrongBookReviewResult(correct, updated.status(), updated.reviewCount());

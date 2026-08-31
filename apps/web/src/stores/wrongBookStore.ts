@@ -11,6 +11,7 @@ export const useWrongBookStore = defineStore('wrongBook', {
     error: null as string | null,
     selectedWrongItemId: null as string | null,
     actionFeedback: null as string | null,
+    lastReviewCorrect: null as boolean | null,
     reviewing: false,
   }),
   getters: {
@@ -48,9 +49,11 @@ export const useWrongBookStore = defineStore('wrongBook', {
       if (!item || this.reviewing) return null
       this.reviewing = true
       this.actionFeedback = null
+      this.lastReviewCorrect = null
       try {
         const result = await reviewWrongBookItem({ wrongItemId: item.wrongItemId, answer, durationSeconds })
-        this.actionFeedback = result.correct ? '回答正确，已更新复习状态' : '仍需继续理解这个知识点'
+        this.lastReviewCorrect = result.correct
+        this.actionFeedback = result.correct ? '✓ 回答正确\n本题已掌握' : '✕ 回答错误\n仍需继续复习'
         await this.load(true)
         return result
       } catch (error) {

@@ -80,13 +80,46 @@ class PracticeWrongBookServiceTest {
         when(repository.findQuestion("ps-2", "q-reused")).thenReturn(Optional.of(scopedQuestion));
         when(repository.updateWrongBookReview(item, true, now)).thenReturn(new WrongBookItem(
                 item.wrongItemId(), item.studentId(), item.courseId(), item.classId(), item.questionId(),
-                item.sourceAttemptId(), item.knowledgePointId(), item.reason(), "LEARNING", 1, item.addedAt(), now,
+                item.sourceAttemptId(), item.knowledgePointId(), item.reason(), "MASTERED", 1, item.addedAt(), now,
                 item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion()));
 
         WrongBookService service = new WrongBookService(repository, Clock.fixed(now, java.time.ZoneOffset.UTC));
         WrongBookService.WrongBookReviewResult result = service.review("stu-xiaoming", "wrong-1", "B", 10);
 
         assertThat(result.correct()).isTrue();
+        assertThat(result.status()).isEqualTo("MASTERED");
         verify(repository).findQuestion("ps-2", "q-reused");
+    }
+
+    @Test
+    void incorrectReviewRemainsToReview() {
+        PracticeRepository repository = mock(PracticeRepository.class);
+        Instant now = Instant.parse("2026-08-29T00:00:00Z");
+        WrongBookItem item = new WrongBookItem("wrong-2", "stu-xiaoming", "course-data-structures",
+                "class-cs-2024-01", "q-2", "attempt-3", "kp-graph-basics", null,
+                "LEARNING", 2, now, now, "LIVE_DEMO", "demo-2", "DEMO-GRAPH-001", "corr-2", "source-v1");
+        PracticeRepository.AttemptRow attempt = new PracticeRepository.AttemptRow(
+                "attempt-3", "ps-3", now, "stu-xiaoming", "course-data-structures", "class-cs-2024-01",
+                "kp-graph-basics", "q-2", "AI_COACH_DIAGNOSTIC", "MEDIUM", false, 10, 10000, 1,
+                "A", "LIVE_DEMO", "source-v1", "baseline-ds-v1", "demo-2", "DEMO-GRAPH-001", "corr-2", null, null);
+        InternalQuestion question = new InternalQuestion("q-2", "ps-3", "AI_COACH_DIAGNOSTIC", null,
+                "kp-graph-basics", "SINGLE_CHOICE", "题目",
+                List.of(new QuestionOptionView("A", "相邻"), new QuestionOptionView("B", "连通")),
+                "A", "解释", 0.5, now);
+        when(repository.findWrongBook("stu-xiaoming", "wrong-2")).thenReturn(Optional.of(item));
+        when(repository.findAttemptById("attempt-3")).thenReturn(Optional.of(attempt));
+        when(repository.findActiveDemo("stu-xiaoming", "course-data-structures"))
+                .thenReturn(Optional.of(new PracticeRepository.DemoContext("demo-2", "DEMO-GRAPH-001", "corr-2", "baseline-ds-v1")));
+        when(repository.findQuestion("ps-3", "q-2")).thenReturn(Optional.of(question));
+        when(repository.updateWrongBookReview(item, false, now)).thenReturn(new WrongBookItem(
+                item.wrongItemId(), item.studentId(), item.courseId(), item.classId(), item.questionId(),
+                item.sourceAttemptId(), item.knowledgePointId(), item.reason(), "TO_REVIEW", 3, item.addedAt(), item.repairedAt(),
+                item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion()));
+
+        WrongBookService service = new WrongBookService(repository, Clock.fixed(now, java.time.ZoneOffset.UTC));
+        WrongBookService.WrongBookReviewResult result = service.review("stu-xiaoming", "wrong-2", "B", 10);
+
+        assertThat(result.correct()).isFalse();
+        assertThat(result.status()).isEqualTo("TO_REVIEW");
     }
 }
