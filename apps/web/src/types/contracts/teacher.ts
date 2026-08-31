@@ -4,7 +4,8 @@ const Timestamp = z.string().datetime({ offset: true })
 
 export const TeacherStudentContextSchema = z.object({
   studentId: z.string(), displayName: z.string(), courseId: z.string(), courseName: z.string(),
-  classId: z.string(), className: z.string(), demoCaseId: z.string().nullable().optional(),
+  classId: z.string(), className: z.string(), demoRunId: z.string().nullable().optional(),
+  demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherPriorityItemSchema = z.object({
   type: z.string(), title: z.string(), description: z.string(), status: z.string(),
@@ -12,9 +13,11 @@ export const TeacherPriorityItemSchema = z.object({
 })
 export const TeacherRecommendationSchema = z.object({
   recommendationId: z.string(), summary: z.string(), status: z.string(), knowledgePointName: z.string(), capturedAt: Timestamp,
+  demoRunId: z.string().nullable().optional(), demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherPendingOutcomeSchema = z.object({
   interventionId: z.string(), strategy: z.string(), status: z.string(), knowledgePointName: z.string(), committedAt: Timestamp.nullable().optional(),
+  demoRunId: z.string().nullable().optional(), demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherWorkbenchSchema = z.object({
   currentStudent: TeacherStudentContextSchema.nullable(),
@@ -25,7 +28,8 @@ export const TeacherWorkbenchSchema = z.object({
 
 export const TeacherStudentSchema = z.object({
   studentId: z.string(), displayName: z.string(), courseId: z.string(), courseName: z.string(),
-  classId: z.string(), className: z.string(),
+  classId: z.string(), className: z.string(), demoRunId: z.string().nullable().optional(),
+  demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherLearningStateSchema = z.object({
   knowledgePointName: z.string(), mastery: z.number(), confidence: z.number(), forgettingRisk: z.number(),
@@ -34,6 +38,7 @@ export const TeacherLearningStateSchema = z.object({
 export const TeacherRecentAttemptSchema = z.object({
   questionId: z.string(), knowledgePointName: z.string(), questionSummary: z.string(), correct: z.boolean(),
   durationSeconds: z.number().int(), attemptTime: Timestamp, misconceptionCode: z.string().nullable().optional(),
+  demoRunId: z.string().nullable().optional(), demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherDiagnosisSummarySchema = z.object({
   severity: z.string(), confidence: z.number(), primaryHypothesis: z.string(),
@@ -42,6 +47,7 @@ export const TeacherDiagnosisSummarySchema = z.object({
 export const TeacherInterventionSchema = z.object({
   strategy: z.string(), status: z.string(), teacherRationale: z.string(), assignmentStatus: z.string().nullable().optional(),
   transferValidation: z.string().nullable().optional(), practiceAccuracyAfter: z.number().nullable().optional(),
+  demoRunId: z.string().nullable().optional(), demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherProfileSchema = z.object({
   student: TeacherStudentSchema,
@@ -53,7 +59,8 @@ export const TeacherProfileSchema = z.object({
 export const TeacherDiagnosisSchema = z.object({
   caseId: z.string(), severity: z.string(), confidence: z.number(), primaryHypothesis: z.string(),
   evidence: z.array(z.string()), counterEvidence: z.array(z.string()), studentName: z.string(),
-  courseName: z.string(), className: z.string(),
+  courseName: z.string(), className: z.string(), demoRunId: z.string().nullable().optional(),
+  demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 
 export type TeacherWorkbenchDto = z.infer<typeof TeacherWorkbenchSchema>

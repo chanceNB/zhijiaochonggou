@@ -3,8 +3,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { router } from '../router'
 import TeacherWorkbenchPage from '../views/TeacherWorkbenchPage.vue'
+import TeacherStudentProfilePage from '../views/TeacherStudentProfilePage.vue'
+import TeacherDiagnosisCasePage from '../views/TeacherDiagnosisCasePage.vue'
+import TeacherTopHeader from '../components/TeacherTopHeader.vue'
 import { getTeacherDiagnosis, getTeacherProfile, getTeacherWorkbench } from '../api/teacher'
-import { teacherStatusLabel, teacherStrategyLabel } from '../adapters/teacher/presentation'
+import { teacherStatusLabel, teacherStrategyLabel, teacherTimestampLabel } from '../adapters/teacher/presentation'
 import { useTeacherStore } from '../stores/teacherStore'
 
 vi.mock('../api/teacher', () => ({
@@ -26,7 +29,7 @@ describe('F03 teacher read-model pages', () => {
     setActivePinia(createPinia())
     vi.mocked(getTeacherWorkbench).mockResolvedValue(workbench)
     vi.mocked(getTeacherProfile).mockResolvedValue(profile)
-    vi.mocked(getTeacherDiagnosis).mockResolvedValue({ caseId: 'case-1', severity: 'MEDIUM', confidence: .8, primaryHypothesis: '需要巩固', evidence: ['真实证据'], counterEvidence: [], studentName: '测试学生', courseName: '数据结构', className: '计算机1班' })
+    vi.mocked(getTeacherDiagnosis).mockResolvedValue({ caseId: 'case-1', severity: 'MEDIUM', confidence: .8, primaryHypothesis: '需要巩固', evidence: ['最近一次答题未答对，发生于 8月31日 12:41。'], counterEvidence: [], studentName: '测试学生', courseName: '数据结构', className: '计算机1班' })
     await router.push('/teacher/workbench')
   })
 
@@ -48,5 +51,27 @@ describe('F03 teacher read-model pages', () => {
     const store = useTeacherStore()
     expect(store.classify('FORBIDDEN')).toBe('FORBIDDEN')
     expect(store.classify('RESOURCE_NOT_FOUND')).toBe('NOT_FOUND')
+  })
+
+  it('renders an empty current intervention without inventing historical state', async () => {
+    await router.push('/teacher/students/stu-1?courseId=course-1')
+    const wrapper = mount(TeacherStudentProfilePage, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('暂无干预记录')
+  })
+
+  it('keeps diagnosis evidence timestamps human-readable', async () => {
+    expect(teacherTimestampLabel('2026-08-31T04:41:54.911141Z')).toMatch(/8(?:\/|月)31/)
+    await router.push('/teacher/diagnosis-cases/case-1')
+    const wrapper = mount(TeacherDiagnosisCasePage, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('8月31日 12:41')
+    expect(wrapper.text()).not.toContain('2026-08-31T04:41:54')
+  })
+
+  it('keeps teacher topbar controls display-only until real handlers exist', () => {
+    const wrapper = mount(TeacherTopHeader, { global: { plugins: [router] } })
+    expect(wrapper.findAll('button')).toHaveLength(0)
+    expect((wrapper.get('input[type="search"]').element as HTMLInputElement).disabled).toBe(true)
   })
 })

@@ -2,20 +2,20 @@
   <header class="teacher-top-header" data-testid="teacher-top-header">
     <span class="teacher-top-header__title">{{ title }}</span>
     <div class="teacher-top-header__actions">
-      <form class="teacher-top-header__search" role="search" @submit.prevent>
-        <input type="search" aria-label="搜索教师工作区" placeholder="搜索学生、课程、内容..." />
-        <button type="submit" aria-label="提交搜索">
+      <div class="teacher-top-header__search" role="search" aria-label="搜索教师工作区（暂不可用）">
+        <input type="search" aria-label="搜索教师工作区" placeholder="搜索学生、课程、内容..." disabled />
+        <span class="teacher-top-header__search-icon" aria-hidden="true">
           <Search aria-hidden="true" />
-        </button>
-      </form>
-      <button class="teacher-top-header__icon-button" type="button" aria-label="查看教师通知">
+        </span>
+      </div>
+      <span class="teacher-top-header__icon-button" aria-label="教师通知（暂不可用）">
         <Bell aria-hidden="true" />
-      </button>
-      <button class="teacher-top-header__profile" type="button" aria-label="打开教师个人菜单">
+      </span>
+      <div class="teacher-top-header__profile" aria-label="当前教师账户">
         <span class="teacher-top-header__avatar" aria-hidden="true">师</span>
         <strong>教师账户</strong>
         <ArrowDown aria-hidden="true" />
-      </button>
+      </div>
     </div>
   </header>
 </template>
@@ -85,15 +85,15 @@ const title = computed(() => String(route.meta.title ?? '教师工作台'))
   color: var(--color-secondary);
 }
 
-.teacher-top-header__search button,
+.teacher-top-header__search-icon,
 .teacher-top-header__icon-button,
 .teacher-top-header__profile {
   border: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: default;
 }
 
-.teacher-top-header__search button {
+.teacher-top-header__search-icon {
   display: grid;
   width: 30px;
   height: 30px;
@@ -109,13 +109,6 @@ const title = computed(() => String(route.meta.title ?? '教师工作台'))
   border-radius: 50%;
   color: #40516d;
   font-size: 20px;
-}
-
-.teacher-top-header__icon-button:hover,
-.teacher-top-header__icon-button:focus-visible {
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
-  outline: none;
 }
 
 .teacher-top-header__profile {

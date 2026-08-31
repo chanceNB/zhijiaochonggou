@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +40,8 @@ public class TeacherReadModelService {
     @Transactional(readOnly = true)
     public DiagnosisResponse diagnosis(String caseId) {
         CurrentStudent student = jdbc.query("""
-                select d.demo_case_id, d.student_id, d.course_id, d.class_id, s.display_name, c.name course_name,
+                select d.demo_run_id, d.demo_case_id, d.correlation_id, d.student_id, d.course_id, d.class_id,
+                       s.display_name, c.name course_name,
                        cl.name class_name
                 from app.demo_runs d
                 join app.students s on s.student_id = d.student_id
@@ -49,54 +49,59 @@ public class TeacherReadModelService {
                 join app.classrooms cl on cl.class_id = d.class_id
                 where d.demo_case_id = ? and d.status = 'ACTIVE'
                 order by d.created_at desc limit 1
-                """, (rs, row) -> new CurrentStudent(rs.getString("student_id"), rs.getString("display_name"),
+                """, (rs, row) -> new CurrentStudent(rs.getString("demo_run_id"), rs.getString("demo_case_id"),
+                        rs.getString("correlation_id"), rs.getString("student_id"), rs.getString("display_name"),
                         rs.getString("course_id"), rs.getString("course_name"), rs.getString("class_id"),
-                        rs.getString("class_name"), rs.getString("demo_case_id")), caseId).stream().findFirst()
+                        rs.getString("class_name")), caseId).stream().findFirst()
                 .orElseThrow(() -> new TeacherReadModelNotFoundException("diagnosis case", caseId));
         DiagnosisSummary summary = findDiagnosis(student)
                 .orElseThrow(() -> new TeacherReadModelNotFoundException("diagnosis evidence", caseId));
         return new DiagnosisResponse(caseId, summary.severity(), summary.confidence(), summary.primaryHypothesis(),
                 summary.evidence(), summary.counterEvidence(), student.displayName(), student.courseName(),
-                student.className());
+                student.className(), student.demoRunId(), student.demoCaseId(), student.correlationId());
     }
 
     private Optional<CurrentStudent> findCurrentStudent() {
         return jdbc.query("""
-                select d.student_id, s.display_name, d.course_id, c.name course_name, d.class_id, cl.name class_name,
-                       d.demo_case_id
+                select d.demo_run_id, d.demo_case_id, d.correlation_id, d.student_id, s.display_name, d.course_id,
+                       c.name course_name, d.class_id, cl.name class_name
                 from app.demo_runs d
                 join app.students s on s.student_id = d.student_id
                 join app.courses c on c.course_id = d.course_id
                 join app.classrooms cl on cl.class_id = d.class_id
                 where d.status = 'ACTIVE'
                 order by d.created_at desc limit 1
-                """, (rs, row) -> new CurrentStudent(rs.getString("student_id"), rs.getString("display_name"),
+                """, (rs, row) -> new CurrentStudent(rs.getString("demo_run_id"), rs.getString("demo_case_id"),
+                        rs.getString("correlation_id"), rs.getString("student_id"), rs.getString("display_name"),
                         rs.getString("course_id"), rs.getString("course_name"), rs.getString("class_id"),
-                        rs.getString("class_name"), rs.getString("demo_case_id"))).stream().findFirst();
+                        rs.getString("class_name"))).stream().findFirst();
     }
 
     private Optional<CurrentStudent> findStudent(String studentId, String courseId) {
         return jdbc.query("""
-                select s.student_id, s.display_name, s.course_id, c.name course_name, s.class_id, cl.name class_name,
-                       d.demo_case_id
+                select d.demo_run_id, d.demo_case_id, d.correlation_id, s.student_id, s.display_name, s.course_id,
+                       c.name course_name, s.class_id, cl.name class_name
                 from app.students s
                 join app.courses c on c.course_id = s.course_id
                 join app.classrooms cl on cl.class_id = s.class_id
-                left join app.demo_runs d on d.student_id = s.student_id and d.course_id = s.course_id
+                join app.demo_runs d on d.student_id = s.student_id and d.course_id = s.course_id
                     and d.status = 'ACTIVE'
                 where s.student_id = ? and s.course_id = ?
                 order by d.created_at desc nulls last limit 1
-                """, (rs, row) -> new CurrentStudent(rs.getString("student_id"), rs.getString("display_name"),
+                """, (rs, row) -> new CurrentStudent(rs.getString("demo_run_id"), rs.getString("demo_case_id"),
+                        rs.getString("correlation_id"), rs.getString("student_id"), rs.getString("display_name"),
                         rs.getString("course_id"), rs.getString("course_name"), rs.getString("class_id"),
-                        rs.getString("class_name"), rs.getString("demo_case_id")), studentId, courseId).stream().findFirst();
+                        rs.getString("class_name")), studentId, courseId).stream().findFirst();
     }
 
     private StudentContext toContext(CurrentStudent s) {
-        return new StudentContext(s.studentId(), s.displayName(), s.courseId(), s.courseName(), s.classId(), s.className(), s.demoCaseId());
+        return new StudentContext(s.demoRunId(), s.demoCaseId(), s.correlationId(), s.studentId(), s.displayName(),
+                s.courseId(), s.courseName(), s.classId(), s.className());
     }
 
     private StudentProfile toStudent(CurrentStudent s) {
-        return new StudentProfile(s.studentId(), s.displayName(), s.courseId(), s.courseName(), s.classId(), s.className());
+        return new StudentProfile(s.demoRunId(), s.demoCaseId(), s.correlationId(), s.studentId(), s.displayName(),
+                s.courseId(), s.courseName(), s.classId(), s.className());
     }
 
     private List<PriorityItem> findPriority(CurrentStudent s) {
@@ -106,12 +111,15 @@ public class TeacherReadModelService {
                 from app.intervention_assignments a
                 join app.interventions i on i.intervention_id = a.intervention_id
                 join app.knowledge_points k on k.knowledge_point_id = a.knowledge_point_id
-                where a.student_id = ? and a.course_id = ? and a.status in ('PENDING_STUDENT','IN_PROGRESS')
+                where a.student_id = ? and a.course_id = ? and a.demo_run_id = ? and a.demo_case_id = ?
+                  and a.correlation_id = ? and i.demo_run_id = ? and i.demo_case_id = ? and i.correlation_id = ?
+                  and a.status in ('PENDING_STUDENT','IN_PROGRESS')
                   and i.status = 'COMMITTED'
                 order by a.created_at desc limit 1
                 """, (rs, row) -> new PriorityItem("TEACHER_ASSIGNMENT", "教师任务待完成",
                         "围绕「" + rs.getString("knowledge_point_name") + "」的真实练习任务。", rs.getString("status"),
-                        rs.getString("knowledge_point_name"), rs.getString("strategy_code")), s.studentId(), s.courseId())
+                        rs.getString("knowledge_point_name"), rs.getString("strategy_code")), s.studentId(), s.courseId(),
+                s.demoRunId(), s.demoCaseId(), s.correlationId(), s.demoRunId(), s.demoCaseId(), s.correlationId())
                 .forEach(result::add);
         jdbc.query("""
                 select k.name knowledge_point_name, ls.mastery, c.confidence, c.evidence_count, c.reason_codes
@@ -120,38 +128,53 @@ public class TeacherReadModelService {
                 join app.learning_snapshots ls on ls.student_id = c.student_id
                     and ls.course_id = c.course_id and ls.knowledge_point_id = c.knowledge_point_id
                 where c.student_id = ? and c.course_id = ?
+                  and (exists (select 1 from app.learning_snapshot_history h
+                               where h.student_id = c.student_id and h.course_id = c.course_id
+                                 and h.knowledge_point_id = c.knowledge_point_id
+                                 and h.computed_at = ls.computed_at and h.data_origin = 'LIVE_DEMO'
+                                 and h.demo_run_id = ? and h.demo_case_id = ? and h.correlation_id = ?)
+                       or not exists (select 1 from app.learning_snapshot_history h2
+                                      where h2.student_id = c.student_id and h2.course_id = c.course_id
+                                        and h2.data_origin = 'LIVE_DEMO'))
                 order by c.rank_position limit 1
                 """, (rs, row) -> new PriorityItem("LEARNING_ISSUE", "当前学习问题",
                         "「" + rs.getString("knowledge_point_name") + "」的学习证据需要教师关注。掌握度 "
                                 + percent(rs.getDouble("mastery")) + "%，证据 " + rs.getInt("evidence_count") + " 条。",
-                        "AVAILABLE", rs.getString("knowledge_point_name"), rs.getString("reason_codes")), s.studentId(), s.courseId())
+                         "AVAILABLE", rs.getString("knowledge_point_name"), rs.getString("reason_codes")), s.studentId(), s.courseId(),
+                s.demoRunId(), s.demoCaseId(), s.correlationId())
                 .forEach(result::add);
         return result;
     }
 
     private List<PendingRecommendation> findPendingRecommendations(CurrentStudent s) {
         return jdbc.query("""
-                select r.recommendation_id, r.analysis_summary, r.status, k.name knowledge_point_name, r.captured_at
+                select r.recommendation_id, r.analysis_summary, r.status, k.name knowledge_point_name, r.captured_at,
+                       r.demo_run_id, r.demo_case_id, r.correlation_id
                 from app.analysis_recommendations r
                 join app.knowledge_points k on k.knowledge_point_id = r.knowledge_point_id
-                where r.student_id = ? and r.course_id = ? and r.status = 'PENDING_TEACHER_REVIEW'
+                where r.student_id = ? and r.course_id = ? and r.demo_run_id = ? and r.demo_case_id = ?
+                  and r.correlation_id = ? and r.status = 'PENDING_TEACHER_REVIEW'
                 order by r.captured_at desc
                 """, (rs, row) -> new PendingRecommendation(rs.getString("recommendation_id"),
                 rs.getString("analysis_summary"), rs.getString("status"), rs.getString("knowledge_point_name"),
-                instant(rs.getObject("captured_at"))), s.studentId(), s.courseId());
+                instant(rs.getObject("captured_at")), rs.getString("demo_run_id"), rs.getString("demo_case_id"),
+                rs.getString("correlation_id")), s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId());
     }
 
     private List<PendingOutcome> findPendingOutcomes(CurrentStudent s) {
         return jdbc.query("""
-                select i.intervention_id, i.strategy_code, i.status, k.name knowledge_point_name, i.committed_at
+                select i.intervention_id, i.strategy_code, i.status, k.name knowledge_point_name, i.committed_at,
+                       i.demo_run_id, i.demo_case_id, i.correlation_id
                 from app.interventions i
                 join app.knowledge_points k on k.knowledge_point_id = i.knowledge_point_id
                 left join app.intervention_outcomes o on o.intervention_id = i.intervention_id
-                where i.student_id = ? and i.course_id = ? and i.status = 'COMMITTED' and o.outcome_id is null
+                where i.student_id = ? and i.course_id = ? and i.demo_run_id = ? and i.demo_case_id = ?
+                  and i.correlation_id = ? and i.status = 'COMMITTED' and o.outcome_id is null
                 order by i.committed_at desc
                 """, (rs, row) -> new PendingOutcome(rs.getString("intervention_id"), rs.getString("strategy_code"),
-                rs.getString("status"), rs.getString("knowledge_point_name"), instant(rs.getObject("committed_at"))),
-                s.studentId(), s.courseId());
+                rs.getString("status"), rs.getString("knowledge_point_name"), instant(rs.getObject("committed_at")),
+                rs.getString("demo_run_id"), rs.getString("demo_case_id"), rs.getString("correlation_id")),
+                s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId());
     }
 
     private Optional<LearningState> findLearningState(CurrentStudent s) {
@@ -163,26 +186,37 @@ public class TeacherReadModelService {
                 left join app.weak_knowledge_point_candidates c on c.student_id = ls.student_id
                     and c.course_id = ls.course_id and c.knowledge_point_id = ls.knowledge_point_id
                 where ls.student_id = ? and ls.course_id = ?
+                  and (exists (select 1 from app.learning_snapshot_history h
+                               where h.student_id = ls.student_id and h.course_id = ls.course_id
+                                 and h.knowledge_point_id = ls.knowledge_point_id
+                                 and h.computed_at = ls.computed_at and h.data_origin = 'LIVE_DEMO'
+                                 and h.demo_run_id = ? and h.demo_case_id = ? and h.correlation_id = ?)
+                       or not exists (select 1 from app.learning_snapshot_history h2
+                                      where h2.student_id = ls.student_id and h2.course_id = ls.course_id
+                                        and h2.data_origin = 'LIVE_DEMO'))
                 order by coalesce(c.rank_position, 999999), ls.computed_at desc limit 1
                 """, (rs, row) -> new LearningState(rs.getString("knowledge_point_name"), rs.getDouble("mastery"),
                 rs.getDouble("confidence"), rs.getDouble("forgetting_risk"), rs.getInt("evidence_count"),
                 nullableDouble(rs, "weakness_score"), rs.getString("reason_codes"), instant(rs.getObject("computed_at"))),
-                s.studentId(), s.courseId()).stream().findFirst();
+                s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId()).stream().findFirst();
     }
 
     private List<RecentAttempt> findAttempts(CurrentStudent s) {
         return jdbc.query("""
                 select p.attempt_id, p.question_id, p.correct, p.duration_seconds, p.attempt_time,
                        k.name knowledge_point_name, coalesce(nullif(pq.stem, ''), '练习题') question_summary,
-                       p.misconception_code
+                       p.misconception_code, p.demo_run_id, p.demo_case_id, p.correlation_id
                 from app.practice_attempts p
                 join app.knowledge_points k on k.knowledge_point_id = p.knowledge_point_id
                 left join app.practice_questions pq on pq.practice_set_id = p.practice_set_id and pq.question_id = p.question_id
-                where p.student_id = ? and p.course_id = ?
+                where p.student_id = ? and p.course_id = ? and p.demo_run_id = ? and p.demo_case_id = ?
+                  and p.correlation_id = ?
                 order by p.attempt_time desc, p.attempt_id desc limit 8
                 """, (rs, row) -> new RecentAttempt(rs.getString("question_id"), rs.getString("knowledge_point_name"),
                 rs.getString("question_summary"), rs.getBoolean("correct"), rs.getInt("duration_seconds"),
-                instant(rs.getObject("attempt_time")), rs.getString("misconception_code")), s.studentId(), s.courseId());
+                instant(rs.getObject("attempt_time")), rs.getString("misconception_code"), rs.getString("demo_run_id"),
+                rs.getString("demo_case_id"), rs.getString("correlation_id")), s.studentId(), s.courseId(), s.demoRunId(),
+                s.demoCaseId(), s.correlationId());
     }
 
     private Optional<DiagnosisSummary> findDiagnosis(CurrentStudent s) {
@@ -195,9 +229,9 @@ public class TeacherReadModelService {
         evidence.add("知识点「" + learning.knowledgePointName() + "」有 " + learning.evidenceCount() + " 条学习证据。");
         evidence.add("当前掌握度 " + percent(learning.mastery()) + "%，遗忘风险 " + percent(learning.forgettingRisk()) + "%。");
         attempts.stream().limit(3).forEach(a -> evidence.add((a.correct() ? "最近一次答题正确" : "最近一次答题未答对")
-                + "，发生于 " + a.attemptTime() + "。"));
+                + "，发生于 " + formatEvidenceTime(a.attemptTime()) + "。"));
         List<String> counter = attempts.stream().filter(RecentAttempt::correct).limit(2)
-                .map(a -> "存在答对的练习记录（" + a.attemptTime() + "）。").toList();
+                .map(a -> "存在答对的练习记录（" + formatEvidenceTime(a.attemptTime()) + "）。").toList();
         return Optional.of(new DiagnosisSummary(
                 severity(learning.weaknessScore() == null ? 0.0 : learning.weaknessScore()), learning.confidence(),
                 "知识点「" + learning.knowledgePointName() + "」仍需要巩固与迁移验证", evidence, counter));
@@ -206,15 +240,17 @@ public class TeacherReadModelService {
     private Optional<InterventionSummary> findIntervention(CurrentStudent s) {
         return jdbc.query("""
                 select i.strategy_code, i.status, i.teacher_rationale, a.status assignment_status,
-                       o.transfer_validation, o.practice_accuracy_after
+                       o.transfer_validation, o.practice_accuracy_after, i.demo_run_id, i.demo_case_id, i.correlation_id
                 from app.interventions i
                 left join app.intervention_assignments a on a.intervention_id = i.intervention_id
                 left join app.intervention_outcomes o on o.intervention_id = i.intervention_id
-                where i.student_id = ? and i.course_id = ?
+                where i.student_id = ? and i.course_id = ? and i.demo_run_id = ? and i.demo_case_id = ?
+                  and i.correlation_id = ?
                 order by i.created_at desc limit 1
                 """, (rs, row) -> new InterventionSummary(strategyLabel(rs.getString("strategy_code")), statusLabel(rs.getString("status")),
                 rs.getString("teacher_rationale"), statusLabel(rs.getString("assignment_status")), statusLabel(rs.getString("transfer_validation")),
-                nullableDouble(rs, "practice_accuracy_after")), s.studentId(), s.courseId()).stream().findFirst();
+                nullableDouble(rs, "practice_accuracy_after"), rs.getString("demo_run_id"), rs.getString("demo_case_id"),
+                rs.getString("correlation_id")), s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId()).stream().findFirst();
     }
 
     private static String severity(double weakness) {
@@ -248,6 +284,11 @@ public class TeacherReadModelService {
 
     private static String percent(double value) { return Math.round(value * 100) + ""; }
 
+    private static String formatEvidenceTime(Instant value) {
+        return java.time.format.DateTimeFormatter.ofPattern("M月d日 HH:mm")
+                .withZone(java.time.ZoneId.of("Asia/Shanghai")).format(value);
+    }
+
     private static Double nullableDouble(ResultSet rs, String column) throws SQLException {
         double value = rs.getDouble(column);
         return rs.wasNull() ? null : value;
@@ -260,35 +301,40 @@ public class TeacherReadModelService {
         throw new IllegalArgumentException("Unsupported timestamp value: " + value);
     }
 
-    private record CurrentStudent(String studentId, String displayName, String courseId, String courseName,
-                                  String classId, String className, String demoCaseId) {}
+    private record CurrentStudent(String demoRunId, String demoCaseId, String correlationId, String studentId,
+                                  String displayName, String courseId, String courseName, String classId, String className) {}
 
     public record WorkbenchResponse(StudentContext currentStudent, List<PriorityItem> priorityItems,
                                     List<PendingRecommendation> pendingRecommendations,
                                     List<PendingOutcome> pendingOutcomes) {}
-    public record StudentContext(String studentId, String displayName, String courseId, String courseName,
-                                 String classId, String className, String demoCaseId) {}
+    public record StudentContext(String demoRunId, String demoCaseId, String correlationId, String studentId,
+                                 String displayName, String courseId, String courseName, String classId, String className) {}
     public record PriorityItem(String type, String title, String description, String status,
                                String knowledgePointName, String strategy) {}
     public record PendingRecommendation(String recommendationId, String summary, String status,
-                                        String knowledgePointName, Instant capturedAt) {}
+                                        String knowledgePointName, Instant capturedAt, String demoRunId,
+                                        String demoCaseId, String correlationId) {}
     public record PendingOutcome(String interventionId, String strategy, String status,
-                                 String knowledgePointName, Instant committedAt) {}
+                                 String knowledgePointName, Instant committedAt, String demoRunId,
+                                 String demoCaseId, String correlationId) {}
     public record ProfileResponse(StudentProfile student, LearningState learningState,
                                   List<RecentAttempt> recentAttempts, DiagnosisSummary diagnosis,
                                   InterventionSummary intervention) {}
-    public record StudentProfile(String studentId, String displayName, String courseId, String courseName,
-                                 String classId, String className) {}
+    public record StudentProfile(String demoRunId, String demoCaseId, String correlationId, String studentId,
+                                 String displayName, String courseId, String courseName, String classId, String className) {}
     public record LearningState(String knowledgePointName, double mastery, double confidence,
                                 double forgettingRisk, int evidenceCount, Double weaknessScore,
                                 String reasonCodes, Instant computedAt) {}
     public record RecentAttempt(String questionId, String knowledgePointName, String questionSummary,
-                                boolean correct, int durationSeconds, Instant attemptTime, String misconceptionCode) {}
+                                boolean correct, int durationSeconds, Instant attemptTime, String misconceptionCode,
+                                String demoRunId, String demoCaseId, String correlationId) {}
     public record DiagnosisSummary(String severity, double confidence, String primaryHypothesis,
                                    List<String> evidence, List<String> counterEvidence) {}
     public record InterventionSummary(String strategy, String status, String teacherRationale,
-                                      String assignmentStatus, String transferValidation, Double practiceAccuracyAfter) {}
+                                      String assignmentStatus, String transferValidation, Double practiceAccuracyAfter,
+                                      String demoRunId, String demoCaseId, String correlationId) {}
     public record DiagnosisResponse(String caseId, String severity, double confidence, String primaryHypothesis,
                                     List<String> evidence, List<String> counterEvidence, String studentName,
-                                    String courseName, String className) {}
+                                    String courseName, String className, String demoRunId, String demoCaseId,
+                                    String correlationId) {}
 }
