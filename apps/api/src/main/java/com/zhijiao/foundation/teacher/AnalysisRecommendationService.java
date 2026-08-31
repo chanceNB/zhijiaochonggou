@@ -46,6 +46,9 @@ public class AnalysisRecommendationService {
         require(command.studentId(), "studentId is required");
         require(command.courseId(), "courseId is required");
         require(command.knowledgePointId(), "knowledgePointId is required");
+        if (!repository.knowledgePointBelongsToCourse(command.knowledgePointId(), command.courseId())) {
+            throw new IllegalArgumentException("knowledgePointId does not belong to course");
+        }
         require(command.analysisSummary(), "analysisSummary is required");
         if (command.candidates() == null || command.candidates().size() != 3) {
             throw new IllegalArgumentException("Exactly three recommendation candidates are required");
@@ -70,6 +73,7 @@ public class AnalysisRecommendationService {
         List<AnalysisRecommendation.Candidate> candidates = IntStream.range(0, command.candidates().size())
                 .mapToObj(index -> {
                     AnalysisRecommendationCapture.Candidate candidate = command.candidates().get(index);
+                    if (candidate == null) throw new IllegalArgumentException("candidate is required");
                     require(candidate.strategyCode(), "candidate strategyCode is required");
                     require(candidate.title(), "candidate title is required");
                     require(candidate.rationale(), "candidate rationale is required");
@@ -105,6 +109,10 @@ public class AnalysisRecommendationService {
     public AnalysisRecommendation get(String recommendationId) {
         return repository.findById(recommendationId)
                 .orElseThrow(() -> new RecommendationNotFoundException(recommendationId));
+    }
+
+    public boolean isActiveDemoRun(String demoRunId) {
+        return repository.isActiveDemoRun(demoRunId);
     }
 
     private void require(String value, String message) {

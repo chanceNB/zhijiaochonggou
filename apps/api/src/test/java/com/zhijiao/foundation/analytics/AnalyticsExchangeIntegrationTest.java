@@ -228,7 +228,7 @@ class AnalyticsExchangeIntegrationTest {
 
         assertThat(replay.exportId()).isEqualTo(first.exportId());
         assertThat(first.status()).isEqualTo("SUCCEEDED");
-        assertThat(first.files()).hasSize(11);
+        assertThat(first.files()).hasSize(14);
         assertThat(first.files()).allSatisfy(path -> assertThat(Files.exists(java.nio.file.Path.of(path))).isTrue());
         assertThat(Files.readString(java.nio.file.Path.of(first.manifestPath()))).contains("sb_fact_learning_state");
         String diagnosisCsv = first.files().stream()
@@ -247,7 +247,7 @@ class AnalyticsExchangeIntegrationTest {
         assertThat(export.status()).isEqualTo("SUCCEEDED");
         assertThat(export.scope()).isEqualTo("ACTIVE_DEMO");
         assertThat(export.demoRunId()).isEqualTo(run.demoRunId());
-        assertThat(export.files()).hasSize(11);
+        assertThat(export.files()).hasSize(14);
         assertThat(Files.readString(java.nio.file.Path.of(export.manifestPath())))
                 .contains("\"demoRunId\":\"" + run.demoRunId() + "\"");
         String studentCsv = export.files().stream()

@@ -27,13 +27,19 @@ public class AnalyticsProjectionRepository {
         int attemptRows = projectAttempts(observedAt);
         int wrongBookRows = projectWrongBook(observedAt);
         projectDemoRuns();
+        projectRecommendations(observedAt);
+        projectRecommendationCandidates(observedAt);
         projectInterventions(observedAt);
+        projectInterventionAssignments(observedAt);
         projectInterventionOutcomes(observedAt);
         refreshFreshness(observedAt);
         return new AnalyticsProjectionResult(dimensionRows, learningRows, attemptRows, wrongBookRows, observedAt);
     }
 
     private void clearProjection() {
+        jdbcTemplate.update("delete from smartbi_exchange.sb_fact_analysis_recommendation_candidate");
+        jdbcTemplate.update("delete from smartbi_exchange.sb_fact_analysis_recommendation");
+        jdbcTemplate.update("delete from smartbi_exchange.sb_fact_intervention_assignment");
         jdbcTemplate.update("delete from smartbi_exchange.sb_fact_wrong_book");
         jdbcTemplate.update("delete from smartbi_exchange.sb_fact_practice_attempt");
         jdbcTemplate.update("delete from smartbi_exchange.sb_fact_learning_state");
@@ -250,20 +256,90 @@ public class AnalyticsProjectionRepository {
                 """);
     }
 
+    private void projectRecommendations(Instant observedAt) {
+        jdbcTemplate.update("""
+                insert into smartbi_exchange.sb_fact_analysis_recommendation
+                    (recommendation_id, student_id, course_id, class_id, knowledge_point_id,
+                     analysis_summary, evidence_refs, source, capture_mode, status, generated_at, captured_at,
+                     demo_run_id, demo_case_id, correlation_id, source_version, ingested_at,
+                     is_active_demo, is_active_demo_flag)
+                select r.recommendation_id, r.student_id, r.course_id, r.class_id, r.knowledge_point_id,
+                       r.analysis_summary, r.evidence_refs, r.source, r.capture_mode, r.status,
+                       r.generated_at, r.captured_at, r.demo_run_id, r.demo_case_id, r.correlation_id,
+                       r.source_version, ?,
+                       case when r.demo_run_id is null then false else exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = r.demo_run_id and d.status = 'ACTIVE'
+                       ) end,
+                       case when r.demo_run_id is null then 0 else case when exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = r.demo_run_id and d.status = 'ACTIVE'
+                       ) then 1 else 0 end end
+                from app.analysis_recommendations r
+                where (select count(*) from app.analysis_recommendation_candidates c
+                       where c.recommendation_id = r.recommendation_id) = 3
+                """, timestamp(observedAt));
+    }
+
+    private void projectRecommendationCandidates(Instant observedAt) {
+        jdbcTemplate.update("""
+                insert into smartbi_exchange.sb_fact_analysis_recommendation_candidate
+                    (recommendation_id, candidate_index, strategy_code, title, rationale, action_description,
+                     source_snapshot, student_id, course_id, class_id, knowledge_point_id,
+                     demo_run_id, demo_case_id, correlation_id, source_version, ingested_at,
+                     is_active_demo, is_active_demo_flag)
+                select c.recommendation_id, c.candidate_index, c.strategy_code, c.title, c.rationale,
+                       c.action_description, c.source_snapshot, r.student_id, r.course_id, r.class_id,
+                       r.knowledge_point_id, r.demo_run_id, r.demo_case_id, r.correlation_id, r.source_version, ?,
+                       r.is_active_demo, r.is_active_demo_flag
+                from app.analysis_recommendation_candidates c
+                join smartbi_exchange.sb_fact_analysis_recommendation r
+                  on r.recommendation_id = c.recommendation_id
+                """, timestamp(observedAt));
+    }
+
     private void projectInterventions(Instant observedAt) {
         jdbcTemplate.update("""
                 insert into smartbi_exchange.sb_fact_intervention
                     (event_id, intervention_id, recommendation_id, student_id, course_id, class_id,
                      knowledge_point_id, strategy_code, status, predicted_lift, prediction_low, prediction_high,
-                     assignment_id, event_time, data_origin, demo_run_id, demo_case_id, correlation_id, source_version,
-                     ingested_at)
+                     assignment_id, teacher_rationale, mastery_before, confidence_before, forgetting_risk_before,
+                     weakness_score_before, evidence_count_before, before_captured_at, event_time, data_origin,
+                     demo_run_id, demo_case_id, correlation_id, source_version, ingested_at, is_active_demo,
+                     is_active_demo_flag)
                 select 'intervention:' || intervention_id || ':' || version, intervention_id, recommendation_id,
                        student_id, course_id, class_id, knowledge_point_id, strategy_code, status,
                        predicted_lift, prediction_low, prediction_high, assignment_id,
+                       teacher_rationale, mastery_before, confidence_before, forgetting_risk_before,
+                       weakness_score_before, evidence_count_before, before_captured_at,
                        coalesce(committed_at, approved_at, created_at),
                        case when demo_run_id is null then 'MANUAL_CAPTURE' else 'LIVE_DEMO' end,
-                       demo_run_id, demo_case_id, correlation_id, source_version, ?
+                       demo_run_id, demo_case_id, correlation_id, source_version, ?,
+                       case when demo_run_id is null then false else exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = interventions.demo_run_id and d.status = 'ACTIVE'
+                       ) end,
+                       case when demo_run_id is null then 0 else case when exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = interventions.demo_run_id and d.status = 'ACTIVE'
+                       ) then 1 else 0 end end
                 from app.interventions
+                """, timestamp(observedAt));
+    }
+
+    private void projectInterventionAssignments(Instant observedAt) {
+        jdbcTemplate.update("""
+                insert into smartbi_exchange.sb_fact_intervention_assignment
+                    (assignment_id, intervention_id, practice_set_id, student_id, course_id, class_id,
+                     knowledge_point_id, status, due_at, created_at, data_origin, demo_run_id, demo_case_id,
+                     correlation_id, source_version, ingested_at, is_active_demo, is_active_demo_flag)
+                select a.assignment_id, a.intervention_id, a.practice_set_id, a.student_id, a.course_id, a.class_id,
+                       a.knowledge_point_id, a.status, a.due_at, a.created_at,
+                       case when a.demo_run_id is null then 'MANUAL_CAPTURE' else 'LIVE_DEMO' end,
+                       a.demo_run_id, a.demo_case_id, a.correlation_id, a.source_version, ?,
+                       case when a.demo_run_id is null then false else exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = a.demo_run_id and d.status = 'ACTIVE'
+                       ) end,
+                       case when a.demo_run_id is null then 0 else case when exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = a.demo_run_id and d.status = 'ACTIVE'
+                       ) then 1 else 0 end end
+                from app.intervention_assignments a
                 """, timestamp(observedAt));
     }
 
@@ -275,13 +351,19 @@ public class AnalyticsProjectionRepository {
                      actual_lift, prediction_deviation, practice_accuracy_after, mastery_before, mastery_after,
                      confidence_before, confidence_after, forgetting_risk_before, forgetting_risk_after,
                      evidence_count_before, evidence_count_after, event_time, data_origin, demo_run_id, demo_case_id,
-                     correlation_id, source_version, ingested_at)
+                     correlation_id, source_version, ingested_at, is_active_demo, is_active_demo_flag)
                 select 'intervention-outcome:' || outcome_id, intervention_id, assignment_id, practice_set_id,
                        student_id, course_id, class_id, knowledge_point_id, transfer_validation, predicted_lift,
                        prediction_low, prediction_high, actual_lift, prediction_deviation, practice_accuracy_after,
                        mastery_before, mastery_after, confidence_before, confidence_after, forgetting_risk_before,
                        forgetting_risk_after, evidence_count_before, evidence_count_after, completed_at, data_origin,
-                       demo_run_id, demo_case_id, correlation_id, source_version, ?
+                       demo_run_id, demo_case_id, correlation_id, source_version, ?,
+                       case when demo_run_id is null then false else exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = intervention_outcomes.demo_run_id and d.status = 'ACTIVE'
+                       ) end,
+                       case when demo_run_id is null then 0 else case when exists (
+                           select 1 from app.demo_runs d where d.demo_run_id = intervention_outcomes.demo_run_id and d.status = 'ACTIVE'
+                       ) then 1 else 0 end end
                 from app.intervention_outcomes
                 """, timestamp(observedAt));
     }
@@ -293,8 +375,14 @@ public class AnalyticsProjectionRepository {
                 case "sb_dim_class" -> "app.classrooms";
                 case "sb_dim_student" -> "app.students";
                 case "sb_dim_knowledge_point" -> "app.knowledge_points";
-                case "sb_fact_learning_state", "sb_fact_practice_attempt", "sb_fact_wrong_book", "sb_demo_run_state",
-                     "sb_fact_intervention", "sb_fact_intervention_outcome" -> dataset.objectName();
+                case "sb_fact_learning_state" -> "app.learning_snapshot_history";
+                case "sb_fact_practice_attempt" -> "app.practice_attempts";
+                case "sb_fact_wrong_book" -> "app.wrong_book_items";
+                case "sb_demo_run_state" -> "app.demo_runs";
+                case "sb_fact_analysis_recommendation", "sb_fact_analysis_recommendation_candidate" -> "app.analysis_recommendations";
+                case "sb_fact_intervention" -> "app.interventions";
+                case "sb_fact_intervention_assignment" -> "app.intervention_assignments";
+                case "sb_fact_intervention_outcome" -> "app.intervention_outcomes";
                 default -> null;
             };
             String timeColumn = switch (dataset.datasetKey()) {
@@ -303,8 +391,10 @@ public class AnalyticsProjectionRepository {
                 case "sb_fact_practice_attempt" -> "attempt_time";
                 case "sb_fact_wrong_book" -> "added_at";
                 case "sb_demo_run_state" -> "started_at";
-                case "sb_fact_intervention" -> "event_time";
-                case "sb_fact_intervention_outcome" -> "event_time";
+                case "sb_fact_analysis_recommendation", "sb_fact_analysis_recommendation_candidate" -> "captured_at";
+                case "sb_fact_intervention" -> "created_at";
+                case "sb_fact_intervention_assignment" -> "created_at";
+                case "sb_fact_intervention_outcome" -> "completed_at";
                 default -> null;
             };
             Instant latest = sourceTable == null ? null : nullableInstant(jdbcTemplate.queryForObject(
@@ -328,8 +418,11 @@ public class AnalyticsProjectionRepository {
         addDataset(datasets, "sb_fact_practice_attempt", "FACT", "one row per authoritative PracticeAttempt", "smartbi_exchange.sb_fact_practice_attempt");
         addDataset(datasets, "sb_fact_wrong_book", "FACT", "one row per explicit WrongBookItem", "smartbi_exchange.sb_fact_wrong_book");
         addDataset(datasets, "sb_fact_diagnosis", "FACT_RESERVED", "one row per diagnosis fact (T07)", "smartbi_exchange.sb_fact_diagnosis");
+        addDataset(datasets, "sb_fact_analysis_recommendation", "FACT", "one row per captured SmartBI AIChat recommendation", "smartbi_exchange.sb_fact_analysis_recommendation");
+        addDataset(datasets, "sb_fact_analysis_recommendation_candidate", "FACT", "one row per captured recommendation candidate", "smartbi_exchange.sb_fact_analysis_recommendation_candidate");
         addDataset(datasets, "sb_fact_intervention", "FACT", "one row per intervention fact (T07)", "smartbi_exchange.sb_fact_intervention");
-        addDataset(datasets, "sb_fact_intervention_outcome", "FACT_RESERVED", "one row per intervention outcome fact (T08)", "smartbi_exchange.sb_fact_intervention_outcome");
+        addDataset(datasets, "sb_fact_intervention_assignment", "FACT", "one row per intervention assignment lifecycle state", "smartbi_exchange.sb_fact_intervention_assignment");
+        addDataset(datasets, "sb_fact_intervention_outcome", "FACT", "one row per intervention outcome fact (T08)", "smartbi_exchange.sb_fact_intervention_outcome");
         return datasets;
     }
 

@@ -164,11 +164,29 @@ class T08OutcomeGrowthIntegrationTest {
                 "select status from app.intervention_assignments where intervention_id = ?", String.class, interventionId))
                 .isEqualTo("COMPLETED");
         org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select status from smartbi_exchange.sb_fact_intervention_assignment where intervention_id = ?", String.class, interventionId))
+                .isEqualTo("COMPLETED");
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select is_active_demo_flag from smartbi_exchange.sb_fact_intervention_assignment where intervention_id = ?", Integer.class, interventionId))
+                .isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
                 "select demo_run_id from app.intervention_outcomes where intervention_id = ?", String.class, interventionId))
                 .isEqualTo(run.demoRunId());
         org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
                 "select correlation_id from app.intervention_outcomes where intervention_id = ?", String.class, interventionId))
                 .isEqualTo(run.correlationId());
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select demo_run_id from smartbi_exchange.sb_fact_intervention_outcome where intervention_id = ?", String.class, interventionId))
+                .isEqualTo(run.demoRunId());
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select actual_lift from smartbi_exchange.sb_fact_intervention_outcome where intervention_id = ?", Double.class, interventionId))
+                .isNotNull();
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from smartbi_exchange.sb_fact_learning_state where demo_run_id = ? and snapshot_status = 'CURRENT'", Integer.class, run.demoRunId()))
+                .isGreaterThan(0);
+        org.assertj.core.api.Assertions.assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from smartbi_exchange.sb_fact_learning_state where student_id = ? and knowledge_point_id = ? and snapshot_status = 'HISTORICAL'", Integer.class, STUDENT_ID, KNOWLEDGE_POINT_ID))
+                .isGreaterThan(0);
     }
 
     private void seedStructuredSourceQuestions(DemoRun run) {

@@ -82,6 +82,22 @@ public class AnalysisRecommendationRepository {
                 .stream().findFirst();
     }
 
+    public boolean knowledgePointBelongsToCourse(String knowledgePointId, String courseId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from app.knowledge_points
+                where knowledge_point_id = ? and course_id = ?
+                """, Integer.class, knowledgePointId, courseId);
+        return count != null && count == 1;
+    }
+
+    public boolean isActiveDemoRun(String demoRunId) {
+        if (demoRunId == null || demoRunId.isBlank()) return false;
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from app.demo_runs where demo_run_id = ? and status = 'ACTIVE'
+                """, Integer.class, demoRunId);
+        return count != null && count == 1;
+    }
+
     private AnalysisRecommendation map(ResultSet rs) throws SQLException {
         String recommendationId = rs.getString("recommendation_id");
         List<AnalysisRecommendation.Candidate> candidates = jdbcTemplate.query("""

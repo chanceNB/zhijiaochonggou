@@ -455,8 +455,16 @@ paths:
                   type: array
                   minItems: 3
                   maxItems: 3
-                  items: {type: object}
+                  items:
+                    type: object
+                    required: [strategyCode, title, rationale, actionDescription]
+                    properties:
+                      strategyCode: {type: string}
+                      title: {type: string}
+                      rationale: {type: string}
+                      actionDescription: {type: string}
                 source: {type: string, enum: [SMARTBI_AICHAT]}
+                generatedAt: {type: string, format: date-time}
       responses:
         '200':
           description: Captured recommendation

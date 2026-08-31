@@ -22,7 +22,8 @@ public class AnalyticsExportService {
     private static final List<String> EXPORT_DATASETS = List.of(
             "sb_dim_course", "sb_dim_class", "sb_dim_student", "sb_dim_knowledge_point",
             "sb_fact_learning_state", "sb_fact_practice_attempt", "sb_fact_wrong_book",
-            "sb_fact_diagnosis", "sb_fact_intervention", "sb_fact_intervention_outcome");
+            "sb_fact_diagnosis", "sb_fact_analysis_recommendation", "sb_fact_analysis_recommendation_candidate",
+            "sb_fact_intervention", "sb_fact_intervention_assignment", "sb_fact_intervention_outcome");
 
     private final JdbcTemplate jdbcTemplate;
     private final AnalyticsProjectionService projectionService;
@@ -88,6 +89,12 @@ public class AnalyticsExportService {
                 sql += " where data_origin = 'BASELINE_SIMULATED' or is_active_demo = true";
             } else if (dataset.equals("sb_demo_run_state")) {
                 sql += " where active = true";
+            } else if (dataset.equals("sb_fact_analysis_recommendation")
+                    || dataset.equals("sb_fact_analysis_recommendation_candidate")
+                    || dataset.equals("sb_fact_intervention")
+                    || dataset.equals("sb_fact_intervention_assignment")
+                    || dataset.equals("sb_fact_intervention_outcome")) {
+                sql += " where is_active_demo = true";
             }
         }
         if (demoRunId != null && !demoRunId.isBlank()

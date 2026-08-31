@@ -52,6 +52,7 @@ public class InterventionService {
             throw new IllegalArgumentException("teacherRationale must be at least 10 characters");
         }
         AnalysisRecommendation recommendation = recommendationService.get(recommendationId);
+        requireActiveDemo(recommendation.demoRunId());
         if (repository.findByRecommendationId(recommendationId).isPresent()) {
             throw new IllegalStateException("An intervention already exists for this recommendation");
         }
@@ -75,6 +76,7 @@ public class InterventionService {
     public Intervention approve(String interventionId, String ifMatch, String idempotencyKey) {
         require(idempotencyKey, "Idempotency-Key is required");
         Intervention current = get(interventionId);
+        requireActiveDemo(current.demoRunId());
         if (idempotencyKey.equals(current.approveIdempotencyKey()) && "APPROVED".equals(current.status())) return current;
         if (!"PROPOSED".equals(current.status())) throw new IllegalStateException("Only a proposed intervention can be approved");
         checkVersion(current, ifMatch);
@@ -92,6 +94,7 @@ public class InterventionService {
     public Intervention commit(String interventionId, String ifMatch, String idempotencyKey, Instant dueAt) {
         require(idempotencyKey, "Idempotency-Key is required");
         Intervention current = get(interventionId);
+        requireActiveDemo(current.demoRunId());
         if (idempotencyKey.equals(current.commitIdempotencyKey()) && "COMMITTED".equals(current.status())) return current;
         if (!"APPROVED".equals(current.status())) throw new IllegalStateException("Only an approved intervention can be committed");
         checkVersion(current, ifMatch);
@@ -148,5 +151,11 @@ public class InterventionService {
 
     private void require(String value, String message) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+    }
+
+    private void requireActiveDemo(String demoRunId) {
+        if (demoRunId != null && !demoRunId.isBlank() && !recommendationService.isActiveDemoRun(demoRunId)) {
+            throw new IllegalArgumentException("An active demo run is required for intervention lifecycle");
+        }
     }
 }
