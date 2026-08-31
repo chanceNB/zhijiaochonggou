@@ -8,7 +8,7 @@
         <article><span>正确率</span><strong>{{ practice.outcome.accuracyPercent }}<small>%</small></strong><p>{{ practice.outcome.attemptCount }} 道题已记录</p></article>
         <article><span>学习状态</span><strong class="status-value">{{ practice.outcome.learningStateStatusLabel }}</strong><p>本次练习后的学习状态</p></article>
         <article><span>迁移验证</span><strong class="status-value">{{ practice.outcome.transferValidationLabel }}</strong><p>仅在任务有验证时展示</p></article>
-        <article v-if="practice.outcome.interventionOutcomeId"><span>干预结果</span><strong class="status-value">已记录</strong><p>{{ practice.outcome.interventionOutcomeId }}</p></article>
+        <article v-if="practice.outcome.interventionOutcomeId"><span>干预结果</span><strong class="status-value">已记录</strong><p>干预结果已记录</p></article>
       </section>
       <section class="result-next"><div><span class="eyebrow">下一步</span><h2>{{ nextStepTitle }}</h2><p>{{ nextStepDescription }}</p></div><button type="button" @click="router.push('/student/wrong-book')">查看错题本</button></section>
       <section v-if="practice.outcome.learningStateAfter" class="learning-after"><h2>学习状态更新</h2><div><span>掌握度 <strong>{{ percent(practice.outcome.learningStateAfter.mastery) }}%</strong></span><span>置信度 <strong>{{ percent(practice.outcome.learningStateAfter.confidence) }}%</strong></span><span>遗忘风险 <strong>{{ percent(practice.outcome.learningStateAfter.forgettingRisk) }}%</strong></span><span>证据数 <strong>{{ practice.outcome.learningStateAfter.evidenceCount }}</strong></span></div></section>

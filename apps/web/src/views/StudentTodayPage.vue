@@ -38,7 +38,7 @@
           <section class="today-rail-card" data-testid="today-context-card">
             <h2>学习上下文</h2>
             <dl>
-              <div><dt>知识点</dt><dd>{{ store.data.learningState.knowledgePointId }}</dd></div>
+              <div><dt>知识点</dt><dd>{{ displayKnowledgePoint(store.data.learningState.knowledgePointId, store.data.learningState.knowledgePointName) }}</dd></div>
               <div><dt>证据数</dt><dd>{{ store.data.learningState.evidenceCount }}</dd></div>
             </dl>
           </section>
@@ -55,6 +55,7 @@ import TodayActionCard from '@/components/student/today/TodayActionCard.vue'
 import LearningStatePanel from '@/components/student/today/LearningStatePanel.vue'
 import LearningPath from '@/components/student/today/LearningPath.vue'
 import TeacherAssignmentCard from '@/components/student/today/TeacherAssignmentCard.vue'
+import { displayKnowledgePoint } from '@/adapters/student/presentation'
 import { useStudentContextStore } from '@/stores/studentContextStore'
 
 const store = useStudentContextStore()

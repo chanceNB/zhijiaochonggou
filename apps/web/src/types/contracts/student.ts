@@ -279,3 +279,19 @@ export interface CoachSessionVm {
   context: CoachContextVm
   messages: CoachMessageVm[]
 }
+
+export interface PracticeDiscussionContext {
+  kind: 'PRACTICE' | 'WRONG_BOOK'
+  coachSessionId?: string
+  practiceSetId?: string
+  questionId?: string
+  attemptId?: string
+  questionStem?: string
+  knowledgePointName?: string
+  selectedAnswer?: string
+  correctAnswer?: string
+  explanation?: string
+  misconceptionLabel?: string
+  wrongBookReason?: string
+  reviewStatus?: string
+}

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { AxiosError, AxiosHeaders } from 'axios'
 import { usePracticeStore } from '../stores/practiceStore'
+import { useCoachStore } from '../stores/coachStore'
 import { useWrongBookStore } from '../stores/wrongBookStore'
 import { getPracticeSet, submitPracticeAttempt, completePracticeSet, generateSimilarQuestions } from '../api/student/practice'
 import { reviewWrongBookItem } from '../api/student/wrongBook'
@@ -86,6 +87,19 @@ describe('F02 student presentation layer', () => {
     expect(rendered).toContain('知识点辨析还不够清晰')
     expect(rendered).not.toMatch(/stu-|course-|kp-|attempt-|wrong-|q-|Confused BFS/i)
   })
+
+  it('filters the WrongBook by the real mastered status', async () => {
+    const { getWrongBook } = await import('../api/student/wrongBook')
+    vi.mocked(getWrongBook).mockResolvedValue(wrongBookDisplayDto)
+    await router.push('/student/wrong-book')
+    const wrapper = mount(StudentWrongBookPage, { global: { plugins: [router] } })
+    await flushPromises()
+    const tabs = wrapper.findAll('[role="tab"]')
+    await tabs[2].trigger('click')
+    expect(tabs[2].attributes('aria-selected')).toBe('true')
+    expect(wrapper.find('.list-empty').text()).toContain('没有匹配的错题')
+    expect(wrapper.find('.wrong-detail--empty').exists()).toBe(true)
+  })
 })
 
 describe('F02 practice result contract', () => {
@@ -108,6 +122,20 @@ describe('F02 practice result contract', () => {
 })
 
 describe('F02 wrong book and similar question contracts', () => {
+  it('keeps readable discussion context for the real coach message', () => {
+    const store = useCoachStore()
+    store.setPracticeContext({
+      practiceSetId: 'set-1', questionId: 'q-1', attemptId: 'attempt-private',
+      coachSessionId: 'session-1',
+      questionStem: '题目内容', knowledgePointName: '当前知识点', selectedAnswer: 'B',
+      correctAnswer: 'A', explanation: '系统解释', misconceptionLabel: '答题思路需要复盘',
+    })
+    expect(store.practiceContext?.questionStem).toBe('题目内容')
+    expect(store.practiceContext?.attemptId).toBe('attempt-private')
+    expect(store.practiceContext?.kind).toBe('PRACTICE')
+    expect(store.practiceContext?.coachSessionId).toBe('session-1')
+  })
+
   it('uses the real sourceAttemptId when generating similar questions', async () => {
     vi.mocked(generateSimilarQuestions).mockResolvedValue({ practiceSetId: 'similar-set', questions: [] })
     const result = await generateSimilarQuestions({ sessionId: 'session-1', sourceAttemptId: 'attempt-real', count: 1, idempotencyKey: 'similar-key' })

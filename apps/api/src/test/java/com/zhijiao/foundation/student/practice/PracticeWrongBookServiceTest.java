@@ -55,6 +55,7 @@ class PracticeWrongBookServiceTest {
 
         assertThat(result.correct()).isFalse();
         assertThat(result.correctAnswer()).isEqualTo("A");
+        assertThat(result.canGenerateSimilar()).isFalse();
     }
 
     @Test

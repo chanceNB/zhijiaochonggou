@@ -11,6 +11,7 @@ import { localMessageId, toAssistantMessageVm, toCoachSessionVm } from '@/adapte
 import type {
   CoachMessageVm,
   CoachSessionVm,
+  PracticeDiscussionContext,
   StudentUiState,
 } from '@/types/contracts/student'
 
@@ -27,7 +28,7 @@ export const useCoachStore = defineStore('coach', {
     lastActions: [] as Array<{ type: string; label: string }>,
     lastMessage: null as CoachMessageVm | null,
     currentPracticeSetId: null as string | null,
-    practiceContext: null as { practiceSetId: string; questionId: string; attemptId: string; selectedAnswer: string } | null,
+    practiceContext: null as PracticeDiscussionContext | null,
     similarState: 'INITIAL' as StudentUiState,
     similarError: null as string | null,
   }),
@@ -162,9 +163,17 @@ export const useCoachStore = defineStore('coach', {
     setPracticeSet(practiceSetId: string | null) {
       this.currentPracticeSetId = practiceSetId
     },
-    setPracticeContext(context: { practiceSetId: string; questionId: string; attemptId: string; selectedAnswer: string }) {
+    setPracticeContext(context: Omit<PracticeDiscussionContext, 'kind'> & { kind?: 'PRACTICE' }) {
       this.practiceContext = context
-      this.currentPracticeSetId = context.practiceSetId
+        ? { ...context, kind: 'PRACTICE' }
+        : null
+      this.currentPracticeSetId = context.practiceSetId ?? null
+    },
+    setWrongBookContext(context: Omit<PracticeDiscussionContext, 'kind'>) {
+      this.practiceContext = { ...context, kind: 'WRONG_BOOK' }
+    },
+    clearPracticeContext() {
+      this.practiceContext = null
     },
   },
 })

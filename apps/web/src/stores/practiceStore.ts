@@ -71,7 +71,7 @@ export const usePracticeStore = defineStore('practice', {
               explanation: '',
               misconceptionCode: null,
               canAddWrongBook: !attempt.correct,
-              canGenerateSimilar: !attempt.correct,
+              canGenerateSimilar: !attempt.correct && Boolean(vm.coachSessionId),
               selectedAnswer: attempt.selectedAnswer,
             }
           }

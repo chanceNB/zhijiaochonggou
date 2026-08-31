@@ -40,6 +40,7 @@ export async function sendCoachMessage(sessionId: string, message: string): Prom
   const response = await apiClient.post(
     `/student/coach/sessions/${encodeURIComponent(sessionId)}/messages`,
     { message },
+    { headers: { 'Idempotency-Key': idempotencyKey('coach-message') } },
   )
   const envelope = parseApiEnvelope(response.data)
   return CoachMessageResponseSchema.parse(envelope.data)

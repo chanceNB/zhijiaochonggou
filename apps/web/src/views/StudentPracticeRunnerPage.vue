@@ -33,7 +33,7 @@
           </section>
           <footer class="question-actions">
             <button v-if="feedback?.canAddWrongBook" type="button" class="secondary-action" @click="addWrongBook">加入错题本</button>
-            <button v-if="feedback?.canGenerateSimilar" type="button" class="secondary-action" :disabled="similarBusy" @click="generateSimilar">生成类似题</button>
+            <button v-if="canGenerateSimilar" type="button" class="secondary-action" :disabled="similarBusy" @click="generateSimilar">生成类似题</button>
             <button v-if="feedback" type="button" class="secondary-action" @click="openCoach">和 AI 教练讨论</button>
             <span class="action-spacer" />
             <button v-if="!feedback" type="button" class="primary-action" :disabled="!selectedAnswer || submitting" @click="submit">提交答案</button>
@@ -63,21 +63,48 @@ const submittingQuestion = computed(() => practice.submittingQuestionId === prac
 const sourceLabel = computed(() => practice.data?.source === 'AI_COACH_SIMILAR' ? 'AI 教练 · 类似题' : practice.data?.source === 'TEACHER_ASSIGNMENT' ? '教师任务' : '诊断练习')
 const knowledgePointLabel = computed(() => displayKnowledgePoint(practice.currentQuestion?.knowledgePointId, practice.currentQuestion?.knowledgePointName))
 const misconceptionLabel = computed(() => displayMisconception(feedback.value?.misconceptionCode))
+const canGenerateSimilar = computed(() => Boolean(feedback.value?.canGenerateSimilar && practice.data?.coachSessionId))
 const typeLabel = computed(() => practice.currentQuestion?.questionType === 'SINGLE_CHOICE' ? '单选题' : practice.currentQuestion?.questionType ?? '练习题')
 async function load() { await practice.load(practiceSetId.value, true); selectedAnswer.value = feedback.value?.selectedAnswer ?? '' }
 async function submit() { if (!selectedAnswer.value) return; submitting.value = true; await practice.submitCurrent(selectedAnswer.value, 12); submitting.value = false }
 function next() { practice.setActiveIndex(practice.activeIndex + 1); selectedAnswer.value = feedback.value?.selectedAnswer ?? '' }
 async function finish() { const outcome = await practice.complete(); if (outcome) await router.push(`/student/practice/${encodeURIComponent(practiceSetId.value)}/result`) }
 async function addWrongBook() { if (feedback.value) await practice.addWrongBook(feedback.value.attemptId) }
-async function generateSimilar() { if (!feedback.value || !coach.activeSessionId) return; similarBusy.value = true; const id = await coach.generateSimilar(feedback.value.attemptId); similarBusy.value = false; if (id) await router.push(`/student/practice/${encodeURIComponent(id)}`) }
+async function ensureCoachSession() {
+  const sessionId = practice.data?.coachSessionId
+  if (!sessionId) return false
+  if (coach.activeSessionId !== sessionId) await coach.restoreSession(sessionId)
+  return coach.activeSessionId === sessionId
+}
+async function generateSimilar() {
+  if (!feedback.value || !canGenerateSimilar.value || !(await ensureCoachSession())) return
+  similarBusy.value = true
+  const id = await coach.generateSimilar(feedback.value.attemptId)
+  similarBusy.value = false
+  if (id) await router.push(`/student/practice/${encodeURIComponent(id)}`)
+}
 function openCoach() {
   if (feedback.value && practice.currentQuestion) {
-    coach.setPracticeContext({ practiceSetId: practiceSetId.value, questionId: practice.currentQuestion.questionId, attemptId: feedback.value.attemptId, selectedAnswer: feedback.value.selectedAnswer })
+    coach.setPracticeContext({
+      practiceSetId: practiceSetId.value,
+      coachSessionId: practice.data?.coachSessionId ?? undefined,
+      questionId: practice.currentQuestion.questionId,
+      attemptId: feedback.value.attemptId,
+      questionStem: practice.currentQuestion.stem,
+      knowledgePointName: knowledgePointLabel.value,
+      selectedAnswer: feedback.value.selectedAnswer,
+      correctAnswer: feedback.value.correctAnswer,
+      explanation: feedback.value.explanation,
+      misconceptionLabel: misconceptionLabel.value,
+    })
   }
   void router.push('/student/ai-coach')
 }
 watch(() => practice.currentQuestion?.questionId, () => { selectedAnswer.value = feedback.value?.selectedAnswer ?? '' })
-onMounted(() => void load())
+onMounted(async () => {
+  await load()
+  if (practice.data?.coachSessionId && !coach.activeSessionId) await coach.restoreSession(practice.data.coachSessionId)
+})
 </script>
 
 <style scoped>

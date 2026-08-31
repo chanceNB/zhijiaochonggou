@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhijiao.foundation.knowledge.KnowledgeQueryPort;
 import com.zhijiao.foundation.student.coach.DiagnosticQuestionValidator;
 import com.zhijiao.foundation.student.coach.LlmPort;
+import com.zhijiao.foundation.student.coach.LlmUnavailableException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -61,6 +62,26 @@ class SimilarQuestionServiceTest {
                 .isInstanceOf(DomainRuleViolationException.class)
                 .hasMessageContaining("reset demo run");
         verify(llm, never()).complete(any());
+    }
+
+    @Test
+    void preservesLlmAvailabilityFailureInsteadOfReportingInvalidOutput() {
+        PracticeRepository repository = mock(PracticeRepository.class);
+        LlmPort llm = mock(LlmPort.class);
+        PracticeRepository.AttemptRow attempt = attempt("attempt-unavailable", "ps-1", false, "coach-1");
+        when(repository.findAttemptById("attempt-unavailable")).thenReturn(Optional.of(attempt));
+        when(repository.findQuestion("ps-1", "q-1")).thenReturn(Optional.of(new InternalQuestion(
+                "q-1", "ps-1", "AI_COACH_DIAGNOSTIC", null, "kp-graph-bfs-dfs", "SINGLE_CHOICE",
+                "Original question", java.util.List.of(new QuestionOptionView("A", "A"), new QuestionOptionView("B", "B")),
+                "A", "Explanation", 0.5, NOW)));
+        when(repository.findActiveDemo("stu-xiaoming", "course-data-structures"))
+                .thenReturn(Optional.of(new PracticeRepository.DemoContext("demo-1", "DEMO-GRAPH-001", "corr-1", "baseline-ds-v1")));
+        when(llm.complete(any())).thenThrow(new LlmUnavailableException("LLM credentials are not configured"));
+        SimilarQuestionService service = service(repository, llm);
+
+        assertThatThrownBy(() -> service.generate("coach-1", "attempt-unavailable", 1))
+                .isInstanceOf(LlmUnavailableException.class)
+                .hasMessageContaining("credentials");
     }
 
     private SimilarQuestionService service(PracticeRepository repository, LlmPort llm) {

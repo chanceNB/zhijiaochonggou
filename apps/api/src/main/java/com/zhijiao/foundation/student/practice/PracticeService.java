@@ -235,7 +235,8 @@ public class PracticeService {
 
     private PracticeAttemptResult result(PracticeRepository.AttemptRow attempt, InternalQuestion question) {
         return new PracticeAttemptResult(attempt.attemptId(), attempt.correct(), question.correctAnswer(), question.explanation(),
-                attempt.correct() ? null : "ANSWER_MISMATCH", !attempt.correct(), !attempt.correct());
+                attempt.correct() ? null : "ANSWER_MISMATCH", !attempt.correct(),
+                !attempt.correct() && attempt.coachSessionId() != null);
     }
 
     private String difficultyLabel(double difficulty) {

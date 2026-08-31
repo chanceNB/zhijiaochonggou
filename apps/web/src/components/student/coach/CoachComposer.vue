@@ -6,12 +6,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ArrowUp } from '@element-plus/icons-vue'
 
-defineProps<{ sending: boolean }>()
+const props = defineProps<{ sending: boolean; prefill?: string }>()
 const emit = defineEmits<{ submit: [message: string] }>()
 const value = ref('')
+const lastPrefill = ref('')
+
+watch(() => props.prefill, (prefill) => {
+  const next = prefill?.trim() ?? ''
+  if (next && !value.value.trim() && next !== lastPrefill.value) {
+    value.value = next
+    lastPrefill.value = next
+  }
+}, { immediate: true })
 
 defineExpose({
   clear: () => {

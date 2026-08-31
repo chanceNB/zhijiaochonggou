@@ -9,10 +9,13 @@ import com.zhijiao.foundation.knowledge.KnowledgeUnavailableException;
 import com.zhijiao.foundation.student.coach.DiagnosticQuestion;
 import com.zhijiao.foundation.student.coach.DiagnosticQuestionValidator;
 import com.zhijiao.foundation.student.coach.DiagnosticTarget;
+import com.zhijiao.foundation.student.coach.DiagnosticValidationException;
 import com.zhijiao.foundation.student.coach.InvalidLlmOutputException;
 import com.zhijiao.foundation.student.coach.LlmPort;
 import com.zhijiao.foundation.student.coach.LlmRequest;
 import com.zhijiao.foundation.student.coach.LlmResponse;
+import com.zhijiao.foundation.student.coach.LlmTimeoutException;
+import com.zhijiao.foundation.student.coach.LlmUnavailableException;
 import com.zhijiao.foundation.student.coach.QuestionOption;
 import com.zhijiao.foundation.student.learning.LearningStateEngine;
 import com.zhijiao.foundation.student.learning.LearningStateView;
@@ -86,7 +89,9 @@ public class SimilarQuestionService {
                     throw new InvalidLlmOutputException("Similar question must have a new questionId", null);
                 }
                 break;
-            } catch (RuntimeException exception) {
+            } catch (LlmUnavailableException | LlmTimeoutException exception) {
+                throw exception;
+            } catch (DiagnosticValidationException | InvalidLlmOutputException exception) {
                 lastFailure = exception;
             }
         }
