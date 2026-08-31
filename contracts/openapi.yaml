@@ -576,6 +576,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelope'
+  /teacher/interventions/by-recommendation/{recommendationId}:
+    get:
+      operationId: getInterventionByRecommendation
+      summary: Read the intervention created from a recommendation
+      parameters:
+        - name: recommendationId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Intervention lifecycle state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelope'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
   /teacher/interventions/{interventionId}/outcome:
     get:
       operationId: getInterventionOutcome
@@ -690,6 +708,7 @@ paths:
     get:
       operationId: listSmartBiAssets
       summary: List configured SmartBI platform assets
+      description: The registry contains the student-risk dashboard, intervention-outcome dashboard, and aichat entry. Real URLs are supplied by the verified competition tenant configuration.
       responses:
         '200':
           description: SmartBI assets
@@ -951,6 +970,7 @@ components:
         type: {type: string}
         title: {type: string}
         knowledgePointId: {type: string}
+        knowledgePointName: {type: string, nullable: true}
         estimatedMinutes: {type: integer, minimum: 0}
     TeacherAssignment:
       type: object
@@ -971,6 +991,9 @@ components:
         demoCaseId: {type: string, nullable: true}
         correlationId: {type: string, nullable: true}
         sourceVersion: {type: string}
+        knowledgePointName: {type: string, nullable: true}
+        title: {type: string, nullable: true}
+        source: {type: string, nullable: true}
     TodayLearningState:
       type: object
       required: [knowledgePointId, mastery, confidence, forgettingRisk, evidenceCount]

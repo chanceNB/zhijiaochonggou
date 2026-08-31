@@ -134,6 +134,16 @@ public class InterventionRepository {
                 """, (rs, rowNum) -> mapAssignment(rs), studentId, courseId).stream().findFirst();
     }
 
+    public Optional<String> findStrategyTitle(String interventionId) {
+        return jdbcTemplate.query("""
+                select c.title
+                from app.interventions i
+                join app.analysis_recommendation_candidates c
+                  on c.recommendation_id = i.recommendation_id and c.strategy_code = i.strategy_code
+                where i.intervention_id = ?
+                """, (rs, rowNum) -> rs.getString("title"), interventionId).stream().findFirst();
+    }
+
     public void captureBeforeSnapshot(String interventionId, BeforeSnapshot snapshot) {
         jdbcTemplate.update("""
                 update app.interventions

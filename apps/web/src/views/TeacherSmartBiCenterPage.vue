@@ -79,7 +79,7 @@ const captureContext = computed(() => context.value && knowledgePointId.value ? 
   correlationId: context.value.correlationId,
 } : null)
 const studentRiskAsset = computed(() => smartbi.assets.find((asset) => asset.assetKey === 'student-risk') ?? null)
-const aichatAsset = computed(() => ({ assetKey: '', type: 'AICHAT', displayName: 'AI 分析助手', status: 'PLATFORM_PENDING' as const, launchMode: 'UNVERIFIED' as const, resourceUrl: null }))
+const aichatAsset = computed(() => smartbi.assets.find((asset) => asset.assetKey === 'aichat') ?? null)
 const freshnessBadgeStatus = computed(() => smartbi.freshnessState === 'DEGRADED' ? 'DEGRADED' as const : smartbi.freshnessState === 'LOADING' || smartbi.freshnessState === 'INITIAL' ? 'LOADING' as const : smartbi.freshness?.status ?? 'NO_DATA')
 
 async function load() {

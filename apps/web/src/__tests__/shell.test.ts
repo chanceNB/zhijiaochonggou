@@ -71,6 +71,14 @@ describe('TeacherSidebar', () => {
     await router.push('/teacher/interventions?section=outcome')
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.is-active').text()).toContain('干预结果')
+
+    await router.push('/teacher/interventions/int-1')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.is-active').text()).toContain('干预结果')
+
+    await router.push('/teacher/interventions?recommendationId=rec-1')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.is-active').text()).toContain('干预决策')
   })
 
   it('emits collapse and exposes an accessible toggle', async () => {

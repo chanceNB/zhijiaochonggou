@@ -90,6 +90,12 @@ public class TeacherInterventionController {
         return success(request, response(interventionService.get(interventionId)));
     }
 
+    @GetMapping("/interventions/by-recommendation/{recommendationId}")
+    public ApiEnvelope<InterventionResponse> getInterventionByRecommendation(@PathVariable String recommendationId,
+                                                                              HttpServletRequest request) {
+        return success(request, response(interventionService.getByRecommendation(recommendationId)));
+    }
+
     @GetMapping("/interventions/{interventionId}/outcome")
     public ApiEnvelope<InterventionOutcome> getOutcome(@PathVariable String interventionId,
                                                        HttpServletRequest request) {

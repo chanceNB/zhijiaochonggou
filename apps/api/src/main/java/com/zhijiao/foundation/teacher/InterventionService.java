@@ -122,6 +122,12 @@ public class InterventionService {
     }
 
     @Transactional(readOnly = true)
+    public Intervention getByRecommendation(String recommendationId) {
+        return repository.findByRecommendationId(recommendationId)
+                .orElseThrow(() -> new InterventionNotFoundException(recommendationId));
+    }
+
+    @Transactional(readOnly = true)
     public InterventionAssignment assignment(String interventionId) {
         return repository.findAssignment(interventionId).orElse(null);
     }

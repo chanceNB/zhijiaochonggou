@@ -36,15 +36,21 @@ smartbi:
     student-risk:
       type: DASHBOARD
       display-name: 学生风险分析
-      status: ${SMARTBI_STUDENT_RISK_STATUS:PLATFORM_PENDING}
-      launch-mode: ${SMARTBI_STUDENT_RISK_LAUNCH_MODE:UNVERIFIED}
-      resource-url: ${SMARTBI_STUDENT_RISK_RESOURCE_URL:}
+      status: ${SMARTBI_STUDENT_RISK_STATUS:VERIFIED}
+      launch-mode: ${SMARTBI_STUDENT_RISK_LAUNCH_MODE:IFRAME}
+      resource-url: ${SMARTBI_STUDENT_RISK_RESOURCE_URL:https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/openresource.jsp?resid=d552d9327e2668555c353b0992a28ae9}
     intervention-outcome:
       type: DASHBOARD
-      display-name: 干预成效
-      status: ${SMARTBI_INTERVENTION_OUTCOME_STATUS:PLATFORM_PENDING}
-      launch-mode: ${SMARTBI_INTERVENTION_OUTCOME_LAUNCH_MODE:UNVERIFIED}
-      resource-url: ${SMARTBI_INTERVENTION_OUTCOME_RESOURCE_URL:}
+      display-name: 干预成效分析
+      status: ${SMARTBI_INTERVENTION_OUTCOME_STATUS:VERIFIED}
+      launch-mode: ${SMARTBI_INTERVENTION_OUTCOME_LAUNCH_MODE:IFRAME}
+      resource-url: ${SMARTBI_INTERVENTION_OUTCOME_RESOURCE_URL:https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/openresource.jsp?resid=5f8c6324154b11ca6d4c5c02b18a1b34}
+    aichat:
+      type: AICHAT
+      display-name: AI 分析助手
+      status: ${SMARTBI_AICHAT_STATUS:VERIFIED}
+      launch-mode: ${SMARTBI_AICHAT_LAUNCH_MODE:IFRAME}
+      resource-url: '${SMARTBI_AICHAT_RESOURCE_URL:https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/aichat/proxy/#/canvas/chat}'
 
 security:
   jwt:

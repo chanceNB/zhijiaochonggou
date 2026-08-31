@@ -9,13 +9,15 @@ export const TeacherAssignmentSchema = z.object({
   classId: z.string(),
   knowledgePointId: z.string(),
   status: z.enum(['PENDING_STUDENT', 'IN_PROGRESS', 'COMPLETED']),
-  dueAt: z.string().datetime({ offset: true }),
+  dueAt: z.string().datetime({ offset: true }).nullable().optional(),
   createdAt: z.string().datetime({ offset: true }),
   demoRunId: z.string().nullable().optional(),
   demoCaseId: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
   sourceVersion: z.string().nullable().optional(),
   knowledgePointName: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
 })
 
 export const LearningStateSummarySchema = z.object({

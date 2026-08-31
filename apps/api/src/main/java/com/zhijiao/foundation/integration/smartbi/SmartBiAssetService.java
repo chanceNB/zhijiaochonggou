@@ -13,7 +13,8 @@ import java.util.Map;
 public class SmartBiAssetService {
     private static final Map<String, DefaultAsset> CONTRACT_ASSETS = Map.of(
             "student-risk", new DefaultAsset("DASHBOARD", "学生风险分析"),
-            "intervention-outcome", new DefaultAsset("DASHBOARD", "干预成效")
+            "intervention-outcome", new DefaultAsset("DASHBOARD", "干预成效分析"),
+            "aichat", new DefaultAsset("AICHAT", "AI 分析助手")
     );
 
     private final SmartBiAssetProperties properties;

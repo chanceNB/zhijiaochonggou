@@ -74,8 +74,12 @@ const isActive = (key: string) => {
   if (key === 'workbench') return route.path === '/teacher/workbench'
   if (key === 'analytics') return route.path.startsWith('/teacher/analytics')
   if (key === 'resources') return route.path.startsWith('/teacher/resources')
-  if (key === 'outcome') return route.path === '/teacher/interventions' && route.query.section === 'outcome'
-  return route.path.startsWith('/teacher/interventions') && route.query.section !== 'outcome'
+  if (key === 'outcome') {
+    return route.path === '/teacher/interventions'
+      ? route.query.section === 'outcome'
+      : route.path.startsWith('/teacher/interventions/')
+  }
+  return route.path === '/teacher/interventions' && route.query.section !== 'outcome'
 }
 
 const collapsed = toRef(props, 'collapsed')

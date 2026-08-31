@@ -24,6 +24,17 @@ export function toApiError(error: unknown): ApiErrorModel {
     }
   }
 
+  if (error && typeof error === 'object' && 'code' in error && typeof (error as { code?: unknown }).code === 'string') {
+    const candidate = error as Partial<ApiErrorModel>
+    return {
+      code: candidate.code as string,
+      message: typeof candidate.message === 'string' ? candidate.message : '请求失败',
+      requestId: typeof candidate.requestId === 'string' ? candidate.requestId : 'unknown',
+      data: candidate.data ?? null,
+      timestamp: typeof candidate.timestamp === 'string' ? candidate.timestamp : new Date().toISOString(),
+    }
+  }
+
   const message = error instanceof Error ? error.message : '网络请求失败'
   return {
     code: 'UPSTREAM_ERROR',

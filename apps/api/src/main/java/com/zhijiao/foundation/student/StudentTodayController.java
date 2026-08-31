@@ -49,12 +49,14 @@ public class StudentTodayController {
                 assignment == null ? null : assignment.knowledgePointId());
         Intervention intervention = assignment == null ? null
                 : interventionRepository.findById(assignment.interventionId()).orElse(null);
-        TeacherAssignmentView assignmentView = assignment == null ? null : TeacherAssignmentView.from(assignment);
+        String knowledgePointName = state.state().knowledgePointName();
+        String assignmentTitle = intervention == null ? "教师布置的定向练习"
+                : interventionRepository.findStrategyTitle(intervention.interventionId()).orElse("教师布置的定向练习");
+        TeacherAssignmentView assignmentView = assignment == null ? null : TeacherAssignmentView.from(assignment, knowledgePointName, assignmentTitle);
         String knowledgePointId = state.state().knowledgePointId();
         NextAction nextAction = assignment == null
-                ? new NextAction("AI_COACH_DIAGNOSTIC", "Continue learning", knowledgePointId, 10)
-                : new NextAction("TEACHER_ASSIGNMENT", intervention == null ? "Teacher assignment" : intervention.strategyCode(),
-                assignment.knowledgePointId(), 10);
+                ? new NextAction("AI_COACH_DIAGNOSTIC", "Continue learning", knowledgePointId, knowledgePointName, 10)
+                : new NextAction("TEACHER_ASSIGNMENT", assignmentTitle, assignment.knowledgePointId(), knowledgePointName, 10);
         TodayResponse response = new TodayResponse(studentId, nextAction, assignmentView,
                 LearningStateSummary.from(state), intervention == null ? null : intervention.demoCaseId());
         return ApiEnvelope.success((String) request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE), response,
@@ -65,18 +67,20 @@ public class StudentTodayController {
                                 LearningStateSummary learningState, String demoCaseId) {
     }
 
-    public record NextAction(String type, String title, String knowledgePointId, int estimatedMinutes) {
+    public record NextAction(String type, String title, String knowledgePointId, String knowledgePointName, int estimatedMinutes) {
     }
 
     public record TeacherAssignmentView(String assignmentId, String interventionId, String practiceSetId,
                                         String studentId, String courseId, String classId, String knowledgePointId,
                                         String status, Instant dueAt, Instant createdAt, String demoRunId,
-                                        String demoCaseId, String correlationId, String sourceVersion) {
-            static TeacherAssignmentView from(InterventionAssignment assignment) {
+                                        String demoCaseId, String correlationId, String sourceVersion,
+                                        String knowledgePointName, String title, String source) {
+            static TeacherAssignmentView from(InterventionAssignment assignment, String knowledgePointName, String title) {
                 return new TeacherAssignmentView(assignment.assignmentId(), assignment.interventionId(), assignment.practiceSetId(),
-                        assignment.studentId(), assignment.courseId(), assignment.classId(), assignment.knowledgePointId(),
+                    assignment.studentId(), assignment.courseId(), assignment.classId(), assignment.knowledgePointId(),
                     assignment.status(), assignment.dueAt(), assignment.createdAt(), assignment.demoRunId(),
-                    assignment.demoCaseId(), assignment.correlationId(), assignment.sourceVersion());
+                    assignment.demoCaseId(), assignment.correlationId(), assignment.sourceVersion(), knowledgePointName, title,
+                    "TEACHER_INTERVENTION");
         }
     }
 

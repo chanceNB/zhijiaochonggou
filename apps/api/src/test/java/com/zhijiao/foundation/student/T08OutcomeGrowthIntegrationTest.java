@@ -81,8 +81,13 @@ class T08OutcomeGrowthIntegrationTest {
         String today = mockMvc.perform(get("/api/v1/student/today")
                         .queryParam("studentId", STUDENT_ID).queryParam("courseId", COURSE_ID))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nextAction.title", equalTo("方案B")))
+                .andExpect(jsonPath("$.data.nextAction.knowledgePointName", equalTo("图遍历 BFS / DFS")))
                 .andExpect(jsonPath("$.data.teacherAssignment.assignmentId").isString())
                 .andExpect(jsonPath("$.data.teacherAssignment.practiceSetId").isString())
+                .andExpect(jsonPath("$.data.teacherAssignment.title", equalTo("方案B")))
+                .andExpect(jsonPath("$.data.teacherAssignment.knowledgePointName", equalTo("图遍历 BFS / DFS")))
+                .andExpect(jsonPath("$.data.teacherAssignment.source", equalTo("TEACHER_INTERVENTION")))
                 .andExpect(jsonPath("$.data.teacherAssignment.status", equalTo("PENDING_STUDENT")))
                 .andReturn().getResponse().getContentAsString();
         String practiceSetId = read(today).path("data").path("teacherAssignment").path("practiceSetId").asText();

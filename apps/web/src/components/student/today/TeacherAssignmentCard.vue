@@ -4,8 +4,8 @@
       <span class="assignment-card__label">教师安排</span>
       <span class="assignment-card__status">{{ assignment.status }}</span>
     </header>
-    <h2>定向练习</h2>
-    <p>完成教师下发的专项练习，结果会回到当前学习状态。</p>
+    <h2>{{ assignment.title || '教师布置的定向练习' }}</h2>
+    <p>{{ assignment.knowledgePointName || '当前知识点' }} · 完成后结果会回到当前学习状态。</p>
     <dl>
       <div><dt>预计用时</dt><dd>按任务设置</dd></div>
       <div><dt>截止时间</dt><dd>{{ formatDate(assignment.dueAt) }}</dd></div>
@@ -19,7 +19,7 @@ import type { TodayVm } from '@/types/contracts/student'
 
 defineProps<{ assignment: NonNullable<TodayVm['teacherAssignment']> }>()
 const emit = defineEmits<{ start: [] }>()
-const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '按任务设置'
 </script>
 
 <style scoped>

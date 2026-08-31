@@ -20,3 +20,24 @@ app:
       embedding:
         provider: deterministic
         dimension: 32
+
+smartbi:
+  assets:
+    student-risk:
+      type: DASHBOARD
+      display-name: 学生风险分析
+      status: VERIFIED
+      launch-mode: IFRAME
+      resource-url: https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/openresource.jsp?resid=d552d9327e2668555c353b0992a28ae9
+    intervention-outcome:
+      type: DASHBOARD
+      display-name: 干预成效分析
+      status: VERIFIED
+      launch-mode: IFRAME
+      resource-url: https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/openresource.jsp?resid=5f8c6324154b11ca6d4c5c02b18a1b34
+    aichat:
+      type: AICHAT
+      display-name: AI 分析助手
+      status: VERIFIED
+      launch-mode: IFRAME
+      resource-url: 'https://tiaozhanbei.cloud.smartbi.com.cn/smartbi/vision/aichat/proxy/#/canvas/chat'

@@ -25,6 +25,9 @@ export function displayActionTitle(value?: string | null): string {
   if (!normalized || normalized === 'continue learning' || normalized === 'continue_learning') return '继续学习'
   if (normalized === 'review current topic' || normalized === 'review_current_topic') return '复习当前知识点'
   if (normalized === 'start practice' || normalized === 'start_practice') return '开始练习'
+  if (normalized === 'concept_remediation') return '概念边界校准'
+  if (normalized === 'visual_transfer_practice') return '可视化迁移练习'
+  if (normalized === 'ai_guided_variation') return '分层变式反馈'
   if (isTechnicalIdentifier(value)) return '继续学习'
   return value ?? '继续学习'
 }
