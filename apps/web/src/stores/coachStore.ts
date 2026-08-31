@@ -155,7 +155,9 @@ export const useCoachStore = defineStore('coach', {
         return result.practiceSetId
       } catch (error) {
         const apiError = toApiError(error)
-        this.similarError = apiError.message || '类似题暂时无法生成'
+        this.similarError = apiError.code === 'AI_UPSTREAM_ERROR'
+          ? 'AI 服务暂不可用，请稍后重试'
+          : '类似题生成失败，请重试'
         this.similarState = 'ERROR'
         return null
       }

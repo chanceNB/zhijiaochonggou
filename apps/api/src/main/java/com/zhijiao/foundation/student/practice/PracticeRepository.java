@@ -279,10 +279,17 @@ public class PracticeRepository {
 
     public Optional<WrongBookItem> findWrongBookBySourceAttempt(String studentId, String attemptId) {
         return jdbcTemplate.query("""
-                select wrong_item_id, student_id, course_id, class_id, question_id, source_attempt_id,
-                       knowledge_point_id, reason, status, review_count, added_at, repaired_at,
-                       data_origin, demo_run_id, demo_case_id, correlation_id, source_version
-                from app.wrong_book_items where student_id = ? and source_attempt_id = ?
+                select w.wrong_item_id, w.student_id, w.course_id, w.class_id, w.question_id, w.source_attempt_id,
+                       w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
+                       w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
+                       k.name as knowledge_point_name, q.stem as question_summary,
+                       cast(null as text) as reason_display_name
+                from app.wrong_book_items w
+                left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
+                left join app.practice_questions q on q.practice_set_id = a.practice_set_id
+                    and q.question_id = w.question_id
+                left join app.knowledge_points k on k.knowledge_point_id = w.knowledge_point_id
+                where w.student_id = ? and w.source_attempt_id = ?
                 """, (rs, rowNum) -> mapWrongBook(rs), studentId, attemptId).stream().findFirst();
     }
 
@@ -305,17 +312,24 @@ public class PracticeRepository {
 
     public List<WrongBookItem> findWrongBook(String studentId, String knowledgePointId, String status, int page, int size) {
         StringBuilder sql = new StringBuilder("""
-                select wrong_item_id, student_id, course_id, class_id, question_id, source_attempt_id,
-                       knowledge_point_id, reason, status, review_count, added_at, repaired_at,
-                       data_origin, demo_run_id, demo_case_id, correlation_id, source_version
-                from app.wrong_book_items where student_id = ?
+                select w.wrong_item_id, w.student_id, w.course_id, w.class_id, w.question_id, w.source_attempt_id,
+                       w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
+                       w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
+                       k.name as knowledge_point_name, q.stem as question_summary,
+                       cast(null as text) as reason_display_name
+                from app.wrong_book_items w
+                left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
+                left join app.practice_questions q on q.practice_set_id = a.practice_set_id
+                    and q.question_id = w.question_id
+                left join app.knowledge_points k on k.knowledge_point_id = w.knowledge_point_id
+                where w.student_id = ?
                   and (
-                      data_origin <> 'LIVE_DEMO'
+                      w.data_origin <> 'LIVE_DEMO'
                       or exists (
                           select 1 from app.demo_runs active_demo
-                          where active_demo.demo_run_id = wrong_book_items.demo_run_id
+                          where active_demo.demo_run_id = w.demo_run_id
                             and active_demo.student_id = ?
-                            and active_demo.course_id = wrong_book_items.course_id
+                            and active_demo.course_id = w.course_id
                             and active_demo.status = 'ACTIVE'
                       )
                   )
@@ -323,9 +337,9 @@ public class PracticeRepository {
         List<Object> args = new ArrayList<>();
         args.add(studentId);
         args.add(studentId);
-        if (knowledgePointId != null && !knowledgePointId.isBlank()) { sql.append(" and knowledge_point_id = ?"); args.add(knowledgePointId); }
-        if (status != null && !status.isBlank()) { sql.append(" and status = ?"); args.add(status); }
-        sql.append(" order by added_at desc, wrong_item_id limit ? offset ?");
+        if (knowledgePointId != null && !knowledgePointId.isBlank()) { sql.append(" and w.knowledge_point_id = ?"); args.add(knowledgePointId); }
+        if (status != null && !status.isBlank()) { sql.append(" and w.status = ?"); args.add(status); }
+        sql.append(" order by w.added_at desc, w.wrong_item_id limit ? offset ?");
         args.add(size); args.add(Math.max(0, page - 1) * size);
         return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> mapWrongBook(rs), args.toArray());
     }
@@ -356,18 +370,24 @@ public class PracticeRepository {
 
     public Optional<WrongBookItem> findWrongBook(String studentId, String wrongItemId) {
         return jdbcTemplate.query("""
-                select wrong_item_id, student_id, course_id, class_id, question_id, source_attempt_id,
-                       knowledge_point_id, reason, status, review_count, added_at, repaired_at,
-                       data_origin, demo_run_id, demo_case_id, correlation_id, source_version
-                from app.wrong_book_items
-                where student_id = ? and wrong_item_id = ?
+                select w.wrong_item_id, w.student_id, w.course_id, w.class_id, w.question_id, w.source_attempt_id,
+                       w.knowledge_point_id, w.reason, w.status, w.review_count, w.added_at, w.repaired_at,
+                       w.data_origin, w.demo_run_id, w.demo_case_id, w.correlation_id, w.source_version,
+                       k.name as knowledge_point_name, q.stem as question_summary,
+                       cast(null as text) as reason_display_name
+                from app.wrong_book_items w
+                left join app.practice_attempts a on a.attempt_id = w.source_attempt_id
+                left join app.practice_questions q on q.practice_set_id = a.practice_set_id
+                    and q.question_id = w.question_id
+                left join app.knowledge_points k on k.knowledge_point_id = w.knowledge_point_id
+                where w.student_id = ? and w.wrong_item_id = ?
                   and (
-                      data_origin <> 'LIVE_DEMO'
+                      w.data_origin <> 'LIVE_DEMO'
                       or exists (
                           select 1 from app.demo_runs active_demo
-                          where active_demo.demo_run_id = wrong_book_items.demo_run_id
+                          where active_demo.demo_run_id = w.demo_run_id
                             and active_demo.student_id = ?
-                            and active_demo.course_id = wrong_book_items.course_id
+                            and active_demo.course_id = w.course_id
                             and active_demo.status = 'ACTIVE'
                       )
                   )
@@ -383,7 +403,8 @@ public class PracticeRepository {
                 item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId());
         return new WrongBookItem(item.wrongItemId(), item.studentId(), item.courseId(), item.classId(), item.questionId(),
                 item.sourceAttemptId(), item.knowledgePointId(), item.reason(), status, item.reviewCount() + 1,
-                item.addedAt(), repairedAt, item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion());
+                item.addedAt(), repairedAt, item.dataOrigin(), item.demoRunId(), item.demoCaseId(), item.correlationId(), item.sourceVersion(),
+                item.knowledgePointName(), item.questionSummary(), item.reasonDisplayName());
     }
 
     private PracticeSet mapSet(ResultSet rs) throws SQLException {
@@ -413,7 +434,8 @@ public class PracticeRepository {
                 rs.getString("class_id"), rs.getString("question_id"), rs.getString("source_attempt_id"), rs.getString("knowledge_point_id"),
                 rs.getString("reason"), rs.getString("status"), rs.getInt("review_count"), toInstant(rs.getObject("added_at")),
                 nullableInstant(rs.getObject("repaired_at")), rs.getString("data_origin"), rs.getString("demo_run_id"),
-                rs.getString("demo_case_id"), rs.getString("correlation_id"), rs.getString("source_version"));
+                rs.getString("demo_case_id"), rs.getString("correlation_id"), rs.getString("source_version"),
+                rs.getString("knowledge_point_name"), rs.getString("question_summary"), rs.getString("reason_display_name"));
     }
 
     private String write(Object value) {

@@ -14,7 +14,7 @@ import {
   type PracticeOutcomeVm,
   type PracticeSetVm,
 } from '@/adapters/student/practice'
-import type { StudentUiState } from '@/types/contracts/student'
+import type { StudentUiState, WrongBookItemDto } from '@/types/contracts/student'
 
 export const usePracticeStore = defineStore('practice', {
   state: () => ({
@@ -28,6 +28,8 @@ export const usePracticeStore = defineStore('practice', {
     completing: false,
     outcome: null as PracticeOutcomeVm | null,
     actionFeedback: null as string | null,
+    addingWrongBook: false,
+    addedWrongBookItem: null as WrongBookItemDto | null,
   }),
   getters: {
     currentQuestion: (store) => store.data?.questions[store.activeIndex] ?? null,
@@ -46,6 +48,8 @@ export const usePracticeStore = defineStore('practice', {
       this.completing = false
       this.outcome = null
       this.actionFeedback = null
+      this.addingWrongBook = false
+      this.addedWrongBookItem = null
     },
     async load(practiceSetId: string, force = false) {
       if (!force && this.data?.practiceSetId === practiceSetId && this.state === 'READY') return this.data
@@ -53,6 +57,7 @@ export const usePracticeStore = defineStore('practice', {
         this.feedbackByQuestion = {}
         this.activeIndex = 0
         this.outcome = null
+        this.addedWrongBookItem = null
       }
       this.state = 'LOADING'
       this.error = null
@@ -128,13 +133,20 @@ export const usePracticeStore = defineStore('practice', {
       }
     },
     async addWrongBook(attemptId: string) {
+      if (this.addingWrongBook) return this.addedWrongBookItem
+      if (this.addedWrongBookItem?.sourceAttemptId === attemptId) return this.addedWrongBookItem
+      this.addingWrongBook = true
+      this.actionFeedback = null
       try {
-        await addAttemptToWrongBook(attemptId)
+        const item = await addAttemptToWrongBook(attemptId)
+        this.addedWrongBookItem = item
         this.actionFeedback = '已加入错题本'
-        return true
+        return item
       } catch (error) {
-        this.error = '加入错题本失败，请重试'
-        return false
+        this.actionFeedback = toApiError(error).message || '加入错题本失败，请重试'
+        return null
+      } finally {
+        this.addingWrongBook = false
       }
     },
   },

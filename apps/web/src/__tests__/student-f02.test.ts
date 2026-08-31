@@ -6,13 +6,15 @@ import { usePracticeStore } from '../stores/practiceStore'
 import { useCoachStore } from '../stores/coachStore'
 import { useWrongBookStore } from '../stores/wrongBookStore'
 import { getPracticeSet, submitPracticeAttempt, completePracticeSet, generateSimilarQuestions } from '../api/student/practice'
-import { reviewWrongBookItem } from '../api/student/wrongBook'
+import { addAttemptToWrongBook, reviewWrongBookItem } from '../api/student/wrongBook'
+import { generateSimilarQuestions as generateSimilarCoachQuestions } from '../api/student/coach'
 import { getStudentToday } from '../api/student/today'
 import { toWrongBookPageVm } from '../adapters/student/practice'
 import StudentPracticeHubPage from '../views/StudentPracticeHubPage.vue'
 import StudentWrongBookPage from '../views/StudentWrongBookPage.vue'
+import StudentPracticeRunnerPage from '../views/StudentPracticeRunnerPage.vue'
 import { router } from '../router'
-import type { PracticeSetResponseDto, TodayResponseDto, WrongBookPageDto } from '../types/contracts/student'
+import type { PracticeSetResponseDto, SimilarSetResponseDto, TodayResponseDto, WrongBookPageDto } from '../types/contracts/student'
 
 vi.mock('../api/student/practice', () => ({
   getPracticeSet: vi.fn(),
@@ -26,6 +28,13 @@ vi.mock('../api/student/wrongBook', () => ({
   addAttemptToWrongBook: vi.fn(),
 }))
 vi.mock('../api/student/today', () => ({ getStudentToday: vi.fn() }))
+vi.mock('../api/student/coach', () => ({
+  createCoachSession: vi.fn(),
+  createDiagnosticSet: vi.fn(),
+  getCoachSession: vi.fn(),
+  sendCoachMessage: vi.fn(),
+  generateSimilarQuestions: vi.fn(),
+}))
 
 const setDto = (attempts: PracticeSetResponseDto['attempts'] = []): PracticeSetResponseDto => ({
   practiceSetId: 'set-1', studentId: 'stu-xiaoming', courseId: 'course-data-structures', classId: 'class-1', source: 'AI_COACH_DIAGNOSTIC', status: 'OPEN', coachSessionId: 'session-1',
@@ -141,6 +150,92 @@ describe('F02 wrong book and similar question contracts', () => {
     const result = await generateSimilarQuestions({ sessionId: 'session-1', sourceAttemptId: 'attempt-real', count: 1, idempotencyKey: 'similar-key' })
     expect(result.practiceSetId).toBe('similar-set')
     expect(generateSimilarQuestions).toHaveBeenCalledWith({ sessionId: 'session-1', sourceAttemptId: 'attempt-real', count: 1, idempotencyKey: 'similar-key' })
+  })
+
+  it('returns the real wrong-book item and focuses it after a successful add', async () => {
+    const set = setDto([{ attemptId: 'attempt-real', questionId: 'q-1', selectedAnswer: 'B', correct: false, responseTimeMs: 1000, attemptTime: '2026-08-31T00:00:00Z' }])
+    vi.mocked(getPracticeSet).mockResolvedValue(set)
+    vi.mocked(addAttemptToWrongBook).mockResolvedValue({
+      wrongItemId: 'wrong-real', studentId: 'stu-xiaoming', courseId: 'course-data-structures', classId: 'class-1',
+      questionId: 'q-1', sourceAttemptId: 'attempt-real', knowledgePointId: 'kp-1', knowledgePointName: '排序',
+      questionSummary: '原题题干', reasonDisplayName: '答题思路需要复盘', reason: null, status: 'TO_REVIEW', reviewCount: 0,
+      addedAt: '2026-08-31T00:00:00Z', repairedAt: null, dataOrigin: 'LIVE_DEMO', demoRunId: null, demoCaseId: null,
+      correlationId: null, sourceVersion: null,
+    })
+    const practice = usePracticeStore()
+    await practice.load('set-1')
+    const result = await practice.addWrongBook('attempt-real')
+    const wrongBook = useWrongBookStore()
+    wrongBook.focusItem(result!.wrongItemId)
+    expect(result?.sourceAttemptId).toBe('attempt-real')
+    expect(practice.actionFeedback).toBe('已加入错题本')
+    expect(wrongBook.selectedWrongItemId).toBe('wrong-real')
+    expect(addAttemptToWrongBook).toHaveBeenCalledWith('attempt-real')
+  })
+
+  it('shows wrong-book success feedback in the runner and exposes the real item link', async () => {
+    vi.mocked(getPracticeSet).mockResolvedValue(setDto([
+      { attemptId: 'attempt-real', questionId: 'q-1', selectedAnswer: 'B', correct: false, responseTimeMs: 1000, attemptTime: '2026-08-31T00:00:00Z' },
+    ]))
+    vi.mocked(addAttemptToWrongBook).mockResolvedValue({
+      wrongItemId: 'wrong-real', studentId: 'stu-xiaoming', courseId: 'course-data-structures', classId: 'class-1',
+      questionId: 'q-1', sourceAttemptId: 'attempt-real', knowledgePointId: 'kp-1', knowledgePointName: '排序',
+      questionSummary: '原题题干', reasonDisplayName: '答题思路需要复盘', reason: null, status: 'TO_REVIEW', reviewCount: 0,
+      addedAt: '2026-08-31T00:00:00Z', repairedAt: null, dataOrigin: 'LIVE_DEMO', demoRunId: null, demoCaseId: null,
+      correlationId: null, sourceVersion: null,
+    })
+    const coach = useCoachStore()
+    coach.session = {
+      sessionId: 'session-1', studentId: 'stu-xiaoming', courseId: 'course-data-structures', knowledgePointId: 'kp-1',
+      mode: 'DIAGNOSTIC', status: 'ACTIVE', ragStatus: 'EMPTY',
+      context: { mastery: 0.2, confidence: 0.4, forgettingRisk: 0.6, weaknessScore: 0 }, messages: [],
+    }
+    await router.push('/student/practice/set-1')
+    const wrapper = mount(StudentPracticeRunnerPage, { global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.get('button.secondary-action').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('✓ 已加入错题本')
+    expect(wrapper.text()).toContain('查看错题本')
+    expect(wrapper.findAll('button').some((button) => button.text() === '加入错题本')).toBe(false)
+    expect(useWrongBookStore().selectedWrongItemId).toBe('wrong-real')
+    wrapper.unmount()
+  })
+
+  it('shows similar-question loading and success feedback before navigating', async () => {
+    vi.mocked(getPracticeSet)
+      .mockResolvedValueOnce(setDto([
+        { attemptId: 'attempt-real', questionId: 'q-1', selectedAnswer: 'B', correct: false, responseTimeMs: 1000, attemptTime: '2026-08-31T00:00:00Z' },
+      ]))
+      .mockResolvedValueOnce({
+        ...setDto(),
+        practiceSetId: 'similar-set',
+        source: 'AI_COACH_SIMILAR',
+        questions: [{ ...setDto().questions[0], stem: '生成的真实类似题' }],
+      })
+    let resolveSimilar!: (value: SimilarSetResponseDto) => void
+    vi.mocked(generateSimilarCoachQuestions).mockReturnValue(new Promise((resolve) => { resolveSimilar = resolve }))
+    const coach = useCoachStore()
+    coach.session = {
+      sessionId: 'session-1', studentId: 'stu-xiaoming', courseId: 'course-data-structures', knowledgePointId: 'kp-1',
+      mode: 'DIAGNOSTIC', status: 'ACTIVE', ragStatus: 'EMPTY',
+      context: { mastery: 0.2, confidence: 0.4, forgettingRisk: 0.6, weaknessScore: 0 }, messages: [],
+    }
+    await router.push('/student/practice/set-1')
+    const wrapper = mount(StudentPracticeRunnerPage, { global: { plugins: [router] } })
+    await flushPromises()
+    const similarButton = wrapper.findAll('button').find((button) => button.text() === '生成类似题')
+    expect(similarButton).toBeDefined()
+    const pending = similarButton!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('AI 正在生成...')
+    resolveSimilar({ practiceSetId: 'similar-set', questions: [] })
+    await pending
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/student/practice/similar-set')
+    expect(wrapper.text()).toContain('生成的真实类似题')
+    expect(getPracticeSet).toHaveBeenLastCalledWith('similar-set')
+    wrapper.unmount()
   })
 
   it('preserves a wrong-book review idempotency key in the request contract', async () => {

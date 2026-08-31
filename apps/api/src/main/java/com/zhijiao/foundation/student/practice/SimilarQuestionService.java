@@ -19,6 +19,8 @@ import com.zhijiao.foundation.student.coach.LlmUnavailableException;
 import com.zhijiao.foundation.student.coach.QuestionOption;
 import com.zhijiao.foundation.student.learning.LearningStateEngine;
 import com.zhijiao.foundation.student.learning.LearningStateView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ import java.util.UUID;
 
 @Service
 public class SimilarQuestionService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SimilarQuestionService.class);
     private final PracticeRepository repository;
     private final LearningStateEngine learningStateEngine;
     private final KnowledgeQueryPort knowledgeQueryPort;
@@ -78,10 +81,8 @@ public class SimilarQuestionService {
             try {
                 String stateHint = state == null ? "unavailable" : String.valueOf(state.state().masteryProbability());
                 response = llmPort.complete(new LlmRequest(
-                        "Generate structured practice questions as JSON. Never copy the original question.",
-                        "parentQuestionId=" + original.questionId() + ", wrongAnswer=" + attempt.selectedAnswer()
-                                + ", knowledgePointId=" + original.knowledgePointId() + ", mastery=" + stateHint
-                                + ", evidence=" + evidence + ", count=" + count,
+                        "Generate similar SINGLE_CHOICE practice questions. Return only one JSON object and no markdown.",
+                        similarPrompt(original, attempt.selectedAnswer(), stateHint, evidence, count),
                         true));
                 questions = parse(response, citations, original.questionId(), original.knowledgePointId(), count);
                 validator.validate(questions, original.knowledgePointId(), count);
@@ -93,6 +94,7 @@ public class SimilarQuestionService {
                 throw exception;
             } catch (DiagnosticValidationException | InvalidLlmOutputException exception) {
                 lastFailure = exception;
+                LOGGER.warn("Similar question output failed validation on attempt {}: {}", retry + 1, exception.getMessage());
             }
         }
         if (questions == null || response == null) {
@@ -125,7 +127,7 @@ public class SimilarQuestionService {
     private List<DiagnosticQuestion> parse(LlmResponse response, List<Citation> citations, String parentQuestionId,
                                            String knowledgePointId, int count) {
         try {
-            JsonNode root = objectMapper.readTree(response.content());
+            JsonNode root = objectMapper.readTree(normalizeJson(response.content()));
             JsonNode array = root.isArray() ? root : root.path("questions");
             if (!array.isArray() || array.size() != count) throw new InvalidLlmOutputException("Expected exact similar question count", null);
             List<DiagnosticQuestion> result = new ArrayList<>();
@@ -149,5 +151,45 @@ public class SimilarQuestionService {
         } catch (Exception exception) {
             throw new InvalidLlmOutputException("Similar question output is not valid JSON", exception);
         }
+    }
+
+    private String similarPrompt(InternalQuestion original, String selectedAnswer, String stateHint,
+                                 List<KnowledgeSearchResult> evidence, int count) {
+        return """
+                Generate exactly %d new practice question(s) that test the same knowledge point and address the student's wrong answer.
+                Never copy the original question stem or reuse its questionId. Return exactly this JSON shape:
+                {"questions":[{"questionId":"similar-unique-id","questionType":"SINGLE_CHOICE","stem":"...","options":[{"optionId":"A","text":"..."},{"optionId":"B","text":"..."}],"correctAnswer":"A","explanation":"...","diagnosticTarget":{"code":"...","description":"..."},"difficulty":0.5}]}
+                Hard constraints:
+                - exactly %d question(s)
+                - every questionId is unique, nonblank, and different from the original questionId
+                - questionType is SINGLE_CHOICE
+                - each question has at least two unique nonblank options and correctAnswer matches an optionId
+                - stem, explanation, diagnosticTarget.code, and diagnosticTarget.description are nonblank
+                - difficulty is a number from 0.0 to 1.0
+                - do not include markdown, commentary, or extra top-level fields
+
+                Original questionId: %s
+                Original question: %s
+                Original options: %s
+                Student's wrong answer: %s
+                Knowledge point: %s
+                Current mastery: %s
+                Evidence: %s
+                """.formatted(count, count, original.questionId(), original.stem(), original.options(),
+                selectedAnswer, original.knowledgePointId(), stateHint, evidence);
+    }
+
+    private String normalizeJson(String content) {
+        if (content == null) return "";
+        String normalized = content.trim();
+        if (normalized.startsWith("```") && normalized.endsWith("```")) {
+            int firstLineEnd = normalized.indexOf('\n');
+            normalized = firstLineEnd >= 0 ? normalized.substring(firstLineEnd + 1, normalized.length() - 3).trim()
+                    : normalized.substring(3, normalized.length() - 3).trim();
+        }
+        int objectStart = normalized.indexOf('{');
+        int objectEnd = normalized.lastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart) return normalized.substring(objectStart, objectEnd + 1);
+        return normalized;
     }
 }

@@ -40,6 +40,9 @@ export const useWrongBookStore = defineStore('wrongBook', {
     select(wrongItemId: string) {
       this.selectedWrongItemId = wrongItemId
     },
+    focusItem(wrongItemId: string) {
+      this.selectedWrongItemId = wrongItemId
+    },
     async review(answer: string, durationSeconds = 10) {
       const item = this.selectedItem
       if (!item || this.reviewing) return null

@@ -107,7 +107,16 @@ class PracticeIntegrationTest {
                         .contentType("application/json").content("{\"reason\":\"混淆访问顺序\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", equalTo("TO_REVIEW")))
+                .andExpect(jsonPath("$.data.sourceAttemptId", equalTo(attemptId)))
+                .andExpect(jsonPath("$.data.questionId", equalTo(questionId)))
+                .andExpect(jsonPath("$.data.questionSummary", equalTo("BFS uses which structure?")))
+                .andExpect(jsonPath("$.data.knowledgePointName", equalTo("图遍历 BFS / DFS")))
                 .andReturn().getResponse().getContentAsString();
+        mockMvc.perform(get("/api/v1/student/wrong-book"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].sourceAttemptId", equalTo(attemptId)))
+                .andExpect(jsonPath("$.data.items[0].questionId", equalTo(questionId)))
+                .andExpect(jsonPath("$.data.items[0].questionSummary", equalTo("BFS uses which structure?")));
         String wrongItemId = JsonMapper.builder().findAndAddModules().build().readTree(wrongBookResponse).path("data").path("wrongItemId").asText();
         mockMvc.perform(post("/api/v1/student/practice-attempts/{id}/wrong-book", attemptId)
                         .header("Idempotency-Key", "t04-wrong-replay")
