@@ -9,6 +9,9 @@ import StudentPracticeHubPage from '@/views/StudentPracticeHubPage.vue'
 import StudentPracticeRunnerPage from '@/views/StudentPracticeRunnerPage.vue'
 import StudentPracticeResultPage from '@/views/StudentPracticeResultPage.vue'
 import StudentWrongBookPage from '@/views/StudentWrongBookPage.vue'
+import TeacherWorkbenchPage from '@/views/TeacherWorkbenchPage.vue'
+import TeacherStudentProfilePage from '@/views/TeacherStudentProfilePage.vue'
+import TeacherDiagnosisCasePage from '@/views/TeacherDiagnosisCasePage.vue'
 
 const studentPage = (title: string, subtitle = '学生学习空间') => ({
   component: RoutePlaceholderView,
@@ -50,13 +53,13 @@ const routes: RouteRecordRaw[] = [
     meta: { role: 'teacher' },
     children: [
       { path: '', redirect: '/teacher/workbench' },
-      { path: 'workbench', name: 'teacher-workbench', ...teacherPage('工作台', '当前教学对象与流程状态') },
+      { path: 'workbench', name: 'teacher-workbench', component: TeacherWorkbenchPage, meta: { role: 'teacher', title: '工作台', subtitle: '当前教学对象与流程状态' } },
       { path: 'analytics', name: 'teacher-analytics', ...teacherPage('数据洞察', '进入 SmartBI 分析工作区') },
       { path: 'analytics/:assetKey', name: 'teacher-analytics-asset', ...teacherPage('数据洞察', '查看 SmartBI 分析资产') },
       { path: 'interventions', name: 'teacher-interventions', ...teacherPage('干预决策', '基于分析证据选择教学方案') },
       { path: 'interventions/:interventionId', name: 'teacher-intervention', ...teacherPage('干预结果', '查看干预生命周期与结果') },
-      { path: 'students/:studentId', name: 'teacher-student-profile', ...teacherPage('学生画像', '查看学生学习证据') },
-      { path: 'diagnosis-cases/:caseId', name: 'teacher-diagnosis-case', ...teacherPage('诊断案例', '查看诊断过程与证据') },
+      { path: 'students/:studentId', name: 'teacher-student-profile', component: TeacherStudentProfilePage, meta: { role: 'teacher', title: '学生画像', subtitle: '查看学生学习证据' } },
+      { path: 'diagnosis-cases/:caseId', name: 'teacher-diagnosis-case', component: TeacherDiagnosisCasePage, meta: { role: 'teacher', title: '诊断案例', subtitle: '查看诊断过程与证据' } },
       { path: 'resources', name: 'teacher-resources', ...teacherPage('课程资源', '查看课程资料与索引状态') },
     ],
   },

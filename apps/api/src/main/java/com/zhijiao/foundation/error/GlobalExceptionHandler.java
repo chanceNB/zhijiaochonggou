@@ -19,6 +19,7 @@ import com.zhijiao.foundation.teacher.InterventionNotFoundException;
 import com.zhijiao.foundation.teacher.InterventionOutcomeNotFoundException;
 import com.zhijiao.foundation.teacher.PreconditionFailedException;
 import com.zhijiao.foundation.teacher.RecommendationNotFoundException;
+import com.zhijiao.foundation.teacher.TeacherReadModelNotFoundException;
 import com.zhijiao.foundation.web.RequestIdFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DemoRunNotFoundException.class)
     ResponseEntity<ApiEnvelope<Void>> notFound(DemoRunNotFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
+    }
+
+    @ExceptionHandler(TeacherReadModelNotFoundException.class)
+    ResponseEntity<ApiEnvelope<Void>> teacherReadModelNotFound(TeacherReadModelNotFoundException exception,
+                                                                 HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);
     }
 
