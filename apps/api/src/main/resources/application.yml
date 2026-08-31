@@ -31,6 +31,21 @@ management:
       probes:
         enabled: true
 
+smartbi:
+  assets:
+    student-risk:
+      type: DASHBOARD
+      display-name: 学生风险分析
+      status: ${SMARTBI_STUDENT_RISK_STATUS:PLATFORM_PENDING}
+      launch-mode: ${SMARTBI_STUDENT_RISK_LAUNCH_MODE:UNVERIFIED}
+      resource-url: ${SMARTBI_STUDENT_RISK_RESOURCE_URL:}
+    intervention-outcome:
+      type: DASHBOARD
+      display-name: 干预成效
+      status: ${SMARTBI_INTERVENTION_OUTCOME_STATUS:PLATFORM_PENDING}
+      launch-mode: ${SMARTBI_INTERVENTION_OUTCOME_LAUNCH_MODE:UNVERIFIED}
+      resource-url: ${SMARTBI_INTERVENTION_OUTCOME_RESOURCE_URL:}
+
 security:
   jwt:
     enabled: ${JWT_ENABLED:false}

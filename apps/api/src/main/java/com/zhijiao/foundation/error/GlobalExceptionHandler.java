@@ -15,6 +15,7 @@ import com.zhijiao.foundation.student.practice.PracticeAttemptNotFoundException;
 import com.zhijiao.foundation.student.practice.PracticeSetNotFoundException;
 import com.zhijiao.foundation.student.practice.WrongBookItemNotFoundException;
 import com.zhijiao.foundation.analytics.AnalyticsExportNotFoundException;
+import com.zhijiao.foundation.integration.smartbi.SmartBiAssetNotFoundException;
 import com.zhijiao.foundation.teacher.InterventionNotFoundException;
 import com.zhijiao.foundation.teacher.InterventionOutcomeNotFoundException;
 import com.zhijiao.foundation.teacher.PreconditionFailedException;
@@ -84,6 +85,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({PracticeSetNotFoundException.class, PracticeAttemptNotFoundException.class,
             WrongBookItemNotFoundException.class, AnalyticsExportNotFoundException.class,
             RecommendationNotFoundException.class, InterventionNotFoundException.class,
+            SmartBiAssetNotFoundException.class,
             InterventionOutcomeNotFoundException.class})
     ResponseEntity<ApiEnvelope<Void>> practiceNotFound(RuntimeException exception, HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), null, request);

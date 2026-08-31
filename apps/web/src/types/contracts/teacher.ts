@@ -12,7 +12,7 @@ export const TeacherPriorityItemSchema = z.object({
   knowledgePointName: z.string().nullable().optional(), strategy: z.string().nullable().optional(),
 })
 export const TeacherRecommendationSchema = z.object({
-  recommendationId: z.string(), summary: z.string(), status: z.string(), knowledgePointName: z.string(), capturedAt: Timestamp,
+  recommendationId: z.string(), summary: z.string(), status: z.string(), knowledgePointId: z.string().optional(), knowledgePointName: z.string(), capturedAt: Timestamp,
   demoRunId: z.string().nullable().optional(), demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherPendingOutcomeSchema = z.object({
@@ -32,7 +32,7 @@ export const TeacherStudentSchema = z.object({
   demoCaseId: z.string().nullable().optional(), correlationId: z.string().nullable().optional(),
 })
 export const TeacherLearningStateSchema = z.object({
-  knowledgePointName: z.string(), mastery: z.number(), confidence: z.number(), forgettingRisk: z.number(),
+  knowledgePointId: z.string().optional(), knowledgePointName: z.string(), mastery: z.number(), confidence: z.number(), forgettingRisk: z.number(),
   evidenceCount: z.number().int(), weaknessScore: z.number().nullable().optional(), reasonCodes: z.string().nullable().optional(), computedAt: Timestamp,
 })
 export const TeacherRecentAttemptSchema = z.object({

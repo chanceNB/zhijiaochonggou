@@ -148,15 +148,16 @@ public class TeacherReadModelService {
 
     private List<PendingRecommendation> findPendingRecommendations(CurrentStudent s) {
         return jdbc.query("""
-                select r.recommendation_id, r.analysis_summary, r.status, k.name knowledge_point_name, r.captured_at,
+                select r.recommendation_id, r.analysis_summary, r.status, r.knowledge_point_id, k.name knowledge_point_name, r.captured_at,
                        r.demo_run_id, r.demo_case_id, r.correlation_id
                 from app.analysis_recommendations r
                 join app.knowledge_points k on k.knowledge_point_id = r.knowledge_point_id
                 where r.student_id = ? and r.course_id = ? and r.demo_run_id = ? and r.demo_case_id = ?
                   and r.correlation_id = ? and r.status = 'PENDING_TEACHER_REVIEW'
                 order by r.captured_at desc
-                """, (rs, row) -> new PendingRecommendation(rs.getString("recommendation_id"),
-                rs.getString("analysis_summary"), rs.getString("status"), rs.getString("knowledge_point_name"),
+        """, (rs, row) -> new PendingRecommendation(rs.getString("recommendation_id"),
+                rs.getString("analysis_summary"), rs.getString("status"), rs.getString("knowledge_point_id"),
+                rs.getString("knowledge_point_name"),
                 instant(rs.getObject("captured_at")), rs.getString("demo_run_id"), rs.getString("demo_case_id"),
                 rs.getString("correlation_id")), s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId());
     }
@@ -179,7 +180,7 @@ public class TeacherReadModelService {
 
     private Optional<LearningState> findLearningState(CurrentStudent s) {
         return jdbc.query("""
-                select k.name knowledge_point_name, ls.mastery, ls.confidence, ls.forgetting_risk, ls.evidence_count,
+                select ls.knowledge_point_id, k.name knowledge_point_name, ls.mastery, ls.confidence, ls.forgetting_risk, ls.evidence_count,
                        c.weakness_score, c.reason_codes, ls.computed_at
                 from app.learning_snapshots ls
                 join app.knowledge_points k on k.knowledge_point_id = ls.knowledge_point_id
@@ -195,7 +196,7 @@ public class TeacherReadModelService {
                                       where h2.student_id = ls.student_id and h2.course_id = ls.course_id
                                         and h2.data_origin = 'LIVE_DEMO'))
                 order by coalesce(c.rank_position, 999999), ls.computed_at desc limit 1
-                """, (rs, row) -> new LearningState(rs.getString("knowledge_point_name"), rs.getDouble("mastery"),
+                """, (rs, row) -> new LearningState(rs.getString("knowledge_point_id"), rs.getString("knowledge_point_name"), rs.getDouble("mastery"),
                 rs.getDouble("confidence"), rs.getDouble("forgetting_risk"), rs.getInt("evidence_count"),
                 nullableDouble(rs, "weakness_score"), rs.getString("reason_codes"), instant(rs.getObject("computed_at"))),
                 s.studentId(), s.courseId(), s.demoRunId(), s.demoCaseId(), s.correlationId()).stream().findFirst();
@@ -312,7 +313,7 @@ public class TeacherReadModelService {
     public record PriorityItem(String type, String title, String description, String status,
                                String knowledgePointName, String strategy) {}
     public record PendingRecommendation(String recommendationId, String summary, String status,
-                                        String knowledgePointName, Instant capturedAt, String demoRunId,
+                                        String knowledgePointId, String knowledgePointName, Instant capturedAt, String demoRunId,
                                         String demoCaseId, String correlationId) {}
     public record PendingOutcome(String interventionId, String strategy, String status,
                                  String knowledgePointName, Instant committedAt, String demoRunId,
@@ -322,7 +323,7 @@ public class TeacherReadModelService {
                                   InterventionSummary intervention) {}
     public record StudentProfile(String demoRunId, String demoCaseId, String correlationId, String studentId,
                                  String displayName, String courseId, String courseName, String classId, String className) {}
-    public record LearningState(String knowledgePointName, double mastery, double confidence,
+    public record LearningState(String knowledgePointId, String knowledgePointName, double mastery, double confidence,
                                 double forgettingRisk, int evidenceCount, Double weaknessScore,
                                 String reasonCodes, Instant computedAt) {}
     public record RecentAttempt(String questionId, String knowledgePointName, String questionSummary,

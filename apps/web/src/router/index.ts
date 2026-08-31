@@ -12,6 +12,8 @@ import StudentWrongBookPage from '@/views/StudentWrongBookPage.vue'
 import TeacherWorkbenchPage from '@/views/TeacherWorkbenchPage.vue'
 import TeacherStudentProfilePage from '@/views/TeacherStudentProfilePage.vue'
 import TeacherDiagnosisCasePage from '@/views/TeacherDiagnosisCasePage.vue'
+import TeacherSmartBiCenterPage from '@/views/TeacherSmartBiCenterPage.vue'
+import TeacherSmartBiAssetPage from '@/views/TeacherSmartBiAssetPage.vue'
 
 const studentPage = (title: string, subtitle = '学生学习空间') => ({
   component: RoutePlaceholderView,
@@ -54,8 +56,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', redirect: '/teacher/workbench' },
       { path: 'workbench', name: 'teacher-workbench', component: TeacherWorkbenchPage, meta: { role: 'teacher', title: '工作台', subtitle: '当前教学对象与流程状态' } },
-      { path: 'analytics', name: 'teacher-analytics', ...teacherPage('数据洞察', '进入 SmartBI 分析工作区') },
-      { path: 'analytics/:assetKey', name: 'teacher-analytics-asset', ...teacherPage('数据洞察', '查看 SmartBI 分析资产') },
+      { path: 'analytics', name: 'teacher-analytics', component: TeacherSmartBiCenterPage, meta: { role: 'teacher', title: '数据洞察', subtitle: '进入 SmartBI 分析工作区' } },
+      { path: 'analytics/:assetKey', name: 'teacher-analytics-asset', component: TeacherSmartBiAssetPage, meta: { role: 'teacher', title: '数据洞察', subtitle: '查看 SmartBI 分析资产' } },
       { path: 'interventions', name: 'teacher-interventions', ...teacherPage('干预决策', '基于分析证据选择教学方案') },
       { path: 'interventions/:interventionId', name: 'teacher-intervention', ...teacherPage('干预结果', '查看干预生命周期与结果') },
       { path: 'students/:studentId', name: 'teacher-student-profile', component: TeacherStudentProfilePage, meta: { role: 'teacher', title: '学生画像', subtitle: '查看学生学习证据' } },

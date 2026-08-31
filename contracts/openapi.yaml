@@ -686,6 +686,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiEnvelopeAnalyticsDatasetCatalog'
+  /integrations/smartbi/assets:
+    get:
+      operationId: listSmartBiAssets
+      summary: List configured SmartBI platform assets
+      responses:
+        '200':
+          description: SmartBI assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeSmartBiAssetList'
+  /integrations/smartbi/assets/{assetKey}:
+    get:
+      operationId: getSmartBiAsset
+      summary: Read one configured SmartBI platform asset
+      parameters:
+        - name: assetKey
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: SmartBI asset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiEnvelopeSmartBiAsset'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
   /analytics/smartbi/freshness:
     get:
       operationId: getAnalyticsFreshness
@@ -1555,6 +1584,35 @@ components:
         sourceVersion: {type: string}
         name: {type: string}
         rows: {type: integer, minimum: 0}
+    SmartBiAsset:
+      type: object
+      required: [assetKey, type, displayName, status, launchMode]
+      properties:
+        assetKey: {type: string}
+        type: {type: string}
+        displayName: {type: string}
+        status: {type: string, enum: [VERIFIED, PLATFORM_PENDING, FORBIDDEN, DEGRADED, ERROR]}
+        launchMode: {type: string, enum: [UNVERIFIED, NEW_TAB, IFRAME]}
+        resourceUrl: {type: string, format: uri, nullable: true}
+    SmartBiAssetList:
+      type: object
+      required: [assets]
+      properties:
+        assets:
+          type: array
+          items: {$ref: '#/components/schemas/SmartBiAsset'}
+    ApiEnvelopeSmartBiAsset:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/SmartBiAsset'}
+    ApiEnvelopeSmartBiAssetList:
+      allOf:
+        - $ref: '#/components/schemas/ApiEnvelope'
+        - type: object
+          properties:
+            data: {$ref: '#/components/schemas/SmartBiAssetList'}
     AnalyticsDatasetCatalog:
       type: object
       required: [contractVersion, datasets]
